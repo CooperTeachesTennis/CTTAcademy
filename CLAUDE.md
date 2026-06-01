@@ -157,6 +157,7 @@ CTTAcademy/
 ├── .gitignore
 ├── README.md           # Deployment runbook
 ├── CLAUDE.md           # This file
+├── USER_GUIDE.md       # Plain-language guide for Cooper (coach) — update each session
 └── lastsessionssummary.txt  # Detailed session log from June 2026 build
 ```
 
@@ -319,6 +320,7 @@ in sync with what's live.
 - Prefer the simplest solution that works
 - No inline scripts in HTML (CSP requirement)
 - All JS files are external, loaded via `<script src="...">` tags only
+- Update `USER_GUIDE.md` at the end of every session when new coach-facing features are added
 
 ---
 
@@ -370,3 +372,5 @@ Before any push to `main`:
 | June 2026 | Coach nav unified with public nav; static view/edit toggle on player page; coach login hidden at /coach; CORS + auth URL fixes |
 | June 2026 | Switched coach auth from cross-site cookies to sessionStorage + X-Coach-Token header (fixes Chrome/Safari cookie blocking); added multi-coach support via comma-separated OWNER_GITHUB_ID; fixed session.html missing nav-back-link crash |
 | June 2026 | Active/inactive players, group sessions, analytics panel, CSV export — see lastsessionssummary.txt |
+| June 2026 | Group session player picker improved — filter input + selected-player chips |
+| June 2026 | USER_GUIDE.md created — plain-language coach guide, updated each session |

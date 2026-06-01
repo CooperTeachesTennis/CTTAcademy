@@ -128,6 +128,20 @@ DESIGN DECISIONS MADE THIS SESSION
    Files changed: js/session.js, css/style.css
 
 
+6. USER_GUIDE.md — COACH USER GUIDE CREATED
+   Plain-language guide written for Cooper covering every coach-facing function:
+   logging in, the dashboard (analytics, search, inactive toggle, CSV export),
+   adding players, editing profiles, marking inactive/reactivating, LTTDP,
+   logging individual and group sessions, editing sessions, and a quick-reference
+   table at the end.
+
+   Convention established: USER_GUIDE.md should be updated at the end of every
+   session when new coach-facing features are added. CLAUDE.md now includes this
+   as a standing rule.
+
+   File created: USER_GUIDE.md
+
+
 OPEN / DEFERRED
 -----------------
 1. Parent/guardian account model redesign — one parent email → child sub-profiles
