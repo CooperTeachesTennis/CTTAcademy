@@ -223,12 +223,30 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
 - LTTDP: Goals / Technical Skills / Patterns & Plays / On-Off Season
 - Session notes: Cooper logs, players read
 - Last-session reminder on session log form
-- Coach dashboard: player list with search, add/edit players
-- Coach player editor: profile edit + LTTDP editor + session history
-- Public nav: Home, Player Profile, Store, Education, Link Tree, About Me
+- Coach dashboard: player list with search, add player
+- Coach player editor: static view with Edit toggle for profile + LTTDP independently; session history with edit links
+- Coach nav mirrors public nav: Home | Your Players | Store | Education | Link Tree | About Me
+- Public nav: Home | Player Profile | Store | Education | Link Tree | About Me
 - Placeholder pages: Store, Education (coming soon)
 - Link Tree: Instagram, TikTok, LinkedIn
 - About Me: fetched from Worker
+- Coach login hidden at `/coach` (not linked from anywhere)
+
+### Known Issues / Flagged for Future Session
+
+- Parent/guardian account model needs redesign. Field exists in data model and
+  player self-registration but removed from coach UI until the flow is rethought.
+  Goal: one parent email creates and manages multiple child sub-profiles.
+
+### Not Built — Do Not Add Without Discussion
+
+- Scheduling
+- Payments
+- File or video uploads
+- Email notifications
+- Blog/newsletter system
+- Merch store backend
+- Coach editing privileges on Home, Store, Education, About Me pages (planned but not built)
 
 ### Not Built — Do Not Add Without Discussion
 
@@ -322,3 +340,4 @@ Before any push to `main`:
 |---|---|
 | May 2026 | Initial CLAUDE.md created |
 | June 2026 | Full Phase 1 built and deployed — see lastsessionssummary.txt |
+| June 2026 | Coach nav unified with public nav; static view/edit toggle on player page; coach login hidden at /coach; CORS + auth URL fixes |

@@ -2,6 +2,61 @@ SESSION SUMMARY — June 1, 2026
 Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
 ================================================================================
 
+LATE-SESSION CHANGES (added after initial summary was written)
+---------------------------------------------------------------
+1. COACH NAV UNIFIED WITH PUBLIC NAV
+   After OAuth, Cooper now sees the same tab nav as public users, but with
+   "Your Players" as the second tab instead of "Player Profile". The tabs are:
+   Home | Your Players | Store | Education | Link Tree | About Me
+   This nav appears on dashboard.html, player.html, and session.html.
+   Future: Cooper will eventually get editing privileges on Home, Store,
+   Education, and About Me pages from within this same nav.
+
+2. PLAYER PROFILE — STATIC VIEW WITH EDIT TOGGLE
+   Player Info and LTTDP sections now display as read-only static text by
+   default. Each section has its own "Edit" button. Clicking Edit reveals the
+   form fields. Save returns to static view with updated data. Cancel discards
+   changes. Player Info and LTTDP edit independently.
+
+3. DASHBOARD — REMOVED DUPLICATE ADD PLAYER BUTTON
+   The "+ Add player" link was removed from the nav bar. It only appears in
+   the main body of the dashboard now.
+
+4. PARENT/GUARDIAN EMAIL — FLAGGED FOR REDESIGN
+   Removed parent email field from the coach add/edit player form. The field
+   still exists in the data model and player self-registration form. The parent
+   account model (one parent email → multiple child profiles) needs a proper
+   redesign before it's ready for the coach-facing UI. Flagged for a future
+   session.
+
+5. COACH LOGIN — HIDDEN SECRET URL
+   "Coach Login" button removed from the public landing page entirely.
+   Cooper accesses the dashboard via a private bookmark:
+     https://ctt-academy.pages.dev/coach
+   This URL is not linked from anywhere on the site. coach.html is a simple
+   redirect page that sends Cooper to GitHub OAuth on the Worker.
+   Security: even if someone finds /coach, they cannot pass OAuth without
+   Cooper's GitHub account. The Worker validates a specific numeric GitHub
+   user ID server-side.
+
+6. AUTH.JS FIXED — ABSOLUTE WORKER URL
+   auth.js was using relative URLs for /api/auth/check and /api/auth/logout,
+   which resolved to the Pages domain instead of the Worker. Fixed to use the
+   full Worker URL: https://ctt-worker.andermd535.workers.dev
+
+7. CORS FIXED IN WORKER
+   Worker was using Access-Control-Allow-Origin: * which is incompatible with
+   credentials: 'include'. Fixed to return the specific requesting origin
+   (from an allowlist) with Access-Control-Allow-Credentials: true. Allowlist:
+   https://ctt-academy.pages.dev and https://cooperteachestennis.github.io.
+   Session cookie changed to SameSite=None to support cross-origin requests.
+
+8. OAUTH REDIRECT FIXED
+   After GitHub OAuth, the Worker was redirecting to its own origin instead of
+   the Pages frontend. Fixed to redirect to https://ctt-academy.pages.dev/dashboard.html.
+
+--------------------------------------------------------------------------------
+
 WHAT WE BUILT
 -------------
 A full coaching management platform built from scratch in a single session.
