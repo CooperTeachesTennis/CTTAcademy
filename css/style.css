@@ -90,6 +90,49 @@ body {
 
 .nav-link:hover { text-decoration: underline; }
 
+/* ── Public tab nav ── */
+
+.tab-nav {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tab-nav::-webkit-scrollbar { display: none; }
+
+.tab-nav__inner {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: max-content;
+  padding: 0 16px;
+}
+
+.tab-nav__item {
+  display: inline-flex;
+  align-items: center;
+  padding: 14px 18px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-nav__item:hover {
+  color: var(--color-primary);
+}
+
+.tab-nav__item.is-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
 /* ── Card ── */
 
 .card {

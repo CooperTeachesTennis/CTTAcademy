@@ -5,15 +5,33 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
 
-function json(data, status = 200) {
+const ALLOWED_ORIGINS = [
+  'https://ctt-academy.pages.dev',
+  'https://cooperteachestennis.github.io',
+];
+
+const FRONTEND_URL = ALLOWED_ORIGINS[0];
+
+function getCorsHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
+
+function json(data, status = 200, cors = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...SECURITY_HEADERS },
+    headers: { 'Content-Type': 'application/json', ...SECURITY_HEADERS, ...cors },
   });
 }
 
-function err(message, status = 400) {
-  return json({ error: message }, status);
+function err(message, status = 400, cors = {}) {
+  return json({ error: message }, status, cors);
 }
 
 function redirect(location, status = 302) {
@@ -69,7 +87,7 @@ async function validateOwnerSession(request, env) {
   }
 }
 
-// ── Auth routes ──────────────────────────────────────────────────────────────
+// ── Auth ─────────────────────────────────────────────────────────────────────
 
 async function handleAuthGithub(request, env) {
   const state = generateToken();
@@ -144,24 +162,23 @@ async function handleAuthCallback(request, env) {
     { expirationTtl: 7 * 24 * 60 * 60 }
   );
 
-  const origin = new URL(request.url).origin;
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `${origin}/dashboard.html`,
-      'Set-Cookie': `ctt_session=${sessionToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/`,
+      Location: `${FRONTEND_URL}/dashboard.html`,
+      'Set-Cookie': `ctt_session=${sessionToken}; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/`,
       ...SECURITY_HEADERS,
     },
   });
 }
 
-async function handleAuthCheck(request, env) {
+async function handleAuthCheck(request, env, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return json({ authenticated: false }, 401);
-  return json({ authenticated: true, login: session.githubLogin });
+  if (!session) return json({ authenticated: false }, 401, cors);
+  return json({ authenticated: true, login: session.githubLogin }, 200, cors);
 }
 
-async function handleAuthLogout(request, env) {
+async function handleAuthLogout(request, env, cors) {
   const cookies = parseCookies(request.headers.get('Cookie'));
   const token = cookies['ctt_session'];
   if (token) await env.CTT_KV.delete(`owner:session:${token}`);
@@ -169,25 +186,26 @@ async function handleAuthLogout(request, env) {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Set-Cookie': 'ctt_session=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/',
+      'Set-Cookie': 'ctt_session=; HttpOnly; Secure; SameSite=None; Max-Age=0; Path=/',
       ...SECURITY_HEADERS,
+      ...cors,
     },
   });
 }
 
-// ── Player lookup (public) ───────────────────────────────────────────────────
+// ── Player lookup ─────────────────────────────────────────────────────────────
 
-async function handlePlayerLookup(request, env) {
+async function handlePlayerLookup(request, env, cors) {
   let body;
-  try { body = await request.json(); } catch { return err('Invalid request body'); }
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
   const { email } = body;
-  if (!email || !isValidEmail(email)) return err('Valid email is required');
+  if (!email || !isValidEmail(email)) return err('Valid email is required', 400, cors);
 
   const normalized = normalizeEmail(email);
   const playerIds = await env.CTT_KV.get(`email-index:${normalized}`, { type: 'json' });
 
-  if (!playerIds || playerIds.length === 0) return json({ found: false }, 404);
+  if (!playerIds || playerIds.length === 0) return json({ found: false }, 404, cors);
 
   const players = await Promise.all(
     playerIds.map(id => env.CTT_KV.get(`player:${id}`, { type: 'json' }))
@@ -197,28 +215,28 @@ async function handlePlayerLookup(request, env) {
     .filter(Boolean)
     .map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName }));
 
-  if (validPlayers.length === 0) return json({ found: false }, 404);
+  if (validPlayers.length === 0) return json({ found: false }, 404, cors);
 
-  return json({ found: true, players: validPlayers });
+  return json({ found: true, players: validPlayers }, 200, cors);
 }
 
-// ── Player registration (public) ─────────────────────────────────────────────
+// ── Player registration ───────────────────────────────────────────────────────
 
-async function handlePlayerCreate(request, env) {
+async function handlePlayerCreate(request, env, cors) {
   let body;
-  try { body = await request.json(); } catch { return err('Invalid request body'); }
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
   const { firstName, lastName, email, phone, ntrpLevel, improvementGoals, parentEmail } = body;
 
   if (!firstName || !lastName || !email || !phone) {
-    return err('All fields are required', 400);
+    return err('All fields are required', 400, cors);
   }
-  if (!isValidEmail(email)) return err('Valid email is required');
+  if (!isValidEmail(email)) return err('Valid email is required', 400, cors);
 
   const normalized = normalizeEmail(email);
   const existing = await env.CTT_KV.get(`email-index:${normalized}`, { type: 'json' });
   if (existing && existing.length > 0) {
-    return err('A profile already exists for this email. Please use the lookup form.', 409);
+    return err('A profile already exists for this email. Please use the lookup form.', 409, cors);
   }
 
   const playerId = generateId();
@@ -253,38 +271,38 @@ async function handlePlayerCreate(request, env) {
   allIds.push(playerId);
   await env.CTT_KV.put('players:all', JSON.stringify(allIds));
 
-  return json({ id: playerId, player }, 201);
+  return json({ id: playerId, player }, 201, cors);
 }
 
-// ── Player GET ───────────────────────────────────────────────────────────────
+// ── Player GET ────────────────────────────────────────────────────────────────
 
-async function handlePlayerGet(request, env, playerId) {
+async function handlePlayerGet(request, env, playerId, cors) {
   const ownerSession = await validateOwnerSession(request, env);
   const playerIdHeader = request.headers.get('X-Player-Id');
 
   if (!ownerSession) {
     if (!playerIdHeader || playerIdHeader !== playerId) {
-      return err('Authentication required', 401);
+      return err('Authentication required', 401, cors);
     }
   }
 
   const player = await env.CTT_KV.get(`player:${playerId}`, { type: 'json' });
-  if (!player) return err('Player not found', 404);
+  if (!player) return err('Player not found', 404, cors);
 
-  return json(player);
+  return json(player, 200, cors);
 }
 
-// ── Player PUT (Cooper only) ─────────────────────────────────────────────────
+// ── Player PUT ────────────────────────────────────────────────────────────────
 
-async function handlePlayerUpdate(request, env, playerId) {
+async function handlePlayerUpdate(request, env, playerId, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401);
+  if (!session) return err('Authentication required', 401, cors);
 
   let body;
-  try { body = await request.json(); } catch { return err('Invalid request body'); }
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
   const existing = await env.CTT_KV.get(`player:${playerId}`, { type: 'json' });
-  if (!existing) return err('Player not found', 404);
+  if (!existing) return err('Player not found', 404, cors);
 
   const oldEmail = existing.email;
   const newEmail = body.email ? normalizeEmail(body.email) : oldEmail;
@@ -316,31 +334,31 @@ async function handlePlayerUpdate(request, env, playerId) {
     await env.CTT_KV.put(`email-index:${newEmail}`, JSON.stringify(newIds));
   }
 
-  return json(updated);
+  return json(updated, 200, cors);
 }
 
-// ── All players (Cooper only) ────────────────────────────────────────────────
+// ── All players ───────────────────────────────────────────────────────────────
 
-async function handlePlayersAll(request, env) {
+async function handlePlayersAll(request, env, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401);
+  if (!session) return err('Authentication required', 401, cors);
 
   const allIds = (await env.CTT_KV.get('players:all', { type: 'json' })) || [];
   const players = await Promise.all(allIds.map(id => env.CTT_KV.get(`player:${id}`, { type: 'json' })));
   const valid = players.filter(Boolean).sort((a, b) => a.lastName.localeCompare(b.lastName));
 
-  return json({ players: valid });
+  return json({ players: valid }, 200, cors);
 }
 
-// ── LTTDP ────────────────────────────────────────────────────────────────────
+// ── LTTDP ─────────────────────────────────────────────────────────────────────
 
-async function handleLttdpGet(request, env, playerId) {
+async function handleLttdpGet(request, env, playerId, cors) {
   const ownerSession = await validateOwnerSession(request, env);
   const playerIdHeader = request.headers.get('X-Player-Id');
 
   if (!ownerSession) {
     if (!playerIdHeader || playerIdHeader !== playerId) {
-      return err('Authentication required', 401);
+      return err('Authentication required', 401, cors);
     }
   }
 
@@ -352,15 +370,15 @@ async function handleLttdpGet(request, env, playerId) {
     patternsAndPlays: '',
     onOffSeasons: '',
     updatedAt: null,
-  });
+  }, 200, cors);
 }
 
-async function handleLttdpPut(request, env, playerId) {
+async function handleLttdpPut(request, env, playerId, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401);
+  if (!session) return err('Authentication required', 401, cors);
 
   let body;
-  try { body = await request.json(); } catch { return err('Invalid request body'); }
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
   const lttdp = {
     playerId,
@@ -372,56 +390,56 @@ async function handleLttdpPut(request, env, playerId) {
   };
 
   await env.CTT_KV.put(`lttdp:${playerId}`, JSON.stringify(lttdp));
-  return json(lttdp);
+  return json(lttdp, 200, cors);
 }
 
-// ── Sessions ─────────────────────────────────────────────────────────────────
+// ── Sessions ──────────────────────────────────────────────────────────────────
 
-async function handleSessionsList(request, env, playerId) {
+async function handleSessionsList(request, env, playerId, cors) {
   const ownerSession = await validateOwnerSession(request, env);
   const playerIdHeader = request.headers.get('X-Player-Id');
 
   if (!ownerSession) {
     if (!playerIdHeader || playerIdHeader !== playerId) {
-      return err('Authentication required', 401);
+      return err('Authentication required', 401, cors);
     }
   }
 
   const sessionIds = (await env.CTT_KV.get(`sessions:list:${playerId}`, { type: 'json' })) || [];
-  if (sessionIds.length === 0) return json({ sessions: [] });
+  if (sessionIds.length === 0) return json({ sessions: [] }, 200, cors);
 
   const sessions = await Promise.all(
     sessionIds.map(id => env.CTT_KV.get(`session:${id}`, { type: 'json' }))
   );
 
-  return json({ sessions: sessions.filter(Boolean) });
+  return json({ sessions: sessions.filter(Boolean) }, 200, cors);
 }
 
-async function handleSessionLatest(request, env, playerId) {
+async function handleSessionLatest(request, env, playerId, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401);
+  if (!session) return err('Authentication required', 401, cors);
 
   const sessionIds = (await env.CTT_KV.get(`sessions:list:${playerId}`, { type: 'json' })) || [];
-  if (sessionIds.length === 0) return json({ session: null });
+  if (sessionIds.length === 0) return json({ session: null }, 200, cors);
 
   const latest = await env.CTT_KV.get(`session:${sessionIds[0]}`, { type: 'json' });
-  return json({ session: latest });
+  return json({ session: latest }, 200, cors);
 }
 
-async function handleSessionCreate(request, env) {
+async function handleSessionCreate(request, env, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401);
+  if (!session) return err('Authentication required', 401, cors);
 
   let body;
-  try { body = await request.json(); } catch { return err('Invalid request body'); }
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
   const { playerId, date, durationMinutes, topicsCovered, notes } = body;
   if (!playerId || !date || !durationMinutes || !topicsCovered || !notes) {
-    return err('All fields are required');
+    return err('All fields are required', 400, cors);
   }
 
   const playerExists = await env.CTT_KV.get(`player:${playerId}`, { type: 'json' });
-  if (!playerExists) return err('Player not found', 404);
+  if (!playerExists) return err('Player not found', 404, cors);
 
   const sessionId = generateId();
   const now = new Date().toISOString();
@@ -443,18 +461,18 @@ async function handleSessionCreate(request, env) {
   sessionIds.unshift(sessionId);
   await env.CTT_KV.put(`sessions:list:${playerId}`, JSON.stringify(sessionIds));
 
-  return json(newSession, 201);
+  return json(newSession, 201, cors);
 }
 
-async function handleSessionUpdate(request, env, sessionId) {
+async function handleSessionUpdate(request, env, sessionId, cors) {
   const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401);
+  if (!session) return err('Authentication required', 401, cors);
 
   let body;
-  try { body = await request.json(); } catch { return err('Invalid request body'); }
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
   const existing = await env.CTT_KV.get(`session:${sessionId}`, { type: 'json' });
-  if (!existing) return err('Session not found', 404);
+  if (!existing) return err('Session not found', 404, cors);
 
   const updated = {
     ...existing,
@@ -466,12 +484,12 @@ async function handleSessionUpdate(request, env, sessionId) {
   };
 
   await env.CTT_KV.put(`session:${sessionId}`, JSON.stringify(updated));
-  return json(updated);
+  return json(updated, 200, cors);
 }
 
-// ── Guest ────────────────────────────────────────────────────────────────────
+// ── Guest ─────────────────────────────────────────────────────────────────────
 
-function handleGuestInfo() {
+function handleGuestInfo(cors) {
   return json({
     name: 'Cooper Anderson',
     title: 'Tennis Coach — Cooper Teaches Tennis',
@@ -483,69 +501,64 @@ function handleGuestInfo() {
       'Focus on both on-court performance and off-season development',
     ],
     contact: 'Reach out through Instagram or TikTok @CooperTeachesTennis',
-  });
+  }, 200, cors);
 }
 
-// ── Router ───────────────────────────────────────────────────────────────────
+// ── Router ────────────────────────────────────────────────────────────────────
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const { pathname, method } = { pathname: url.pathname, method: request.method };
-
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id',
-    };
+    const cors = getCorsHeaders(request);
 
     if (method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: { ...corsHeaders, ...SECURITY_HEADERS } });
+      return new Response(null, { status: 204, headers: { ...cors, ...SECURITY_HEADERS } });
     }
 
     try {
       // Auth
       if (method === 'GET' && pathname === '/api/auth/github') return handleAuthGithub(request, env);
       if (method === 'GET' && pathname === '/api/auth/callback') return handleAuthCallback(request, env);
-      if (method === 'GET' && pathname === '/api/auth/check') return handleAuthCheck(request, env);
-      if (method === 'POST' && pathname === '/api/auth/logout') return handleAuthLogout(request, env);
+      if (method === 'GET' && pathname === '/api/auth/check') return handleAuthCheck(request, env, cors);
+      if (method === 'POST' && pathname === '/api/auth/logout') return handleAuthLogout(request, env, cors);
 
       // Players
-      if (method === 'POST' && pathname === '/api/player/lookup') return handlePlayerLookup(request, env);
-      if (method === 'POST' && pathname === '/api/player') return handlePlayerCreate(request, env);
-      if (method === 'GET' && pathname === '/api/players') return handlePlayersAll(request, env);
+      if (method === 'POST' && pathname === '/api/player/lookup') return handlePlayerLookup(request, env, cors);
+      if (method === 'POST' && pathname === '/api/player') return handlePlayerCreate(request, env, cors);
+      if (method === 'GET' && pathname === '/api/players') return handlePlayersAll(request, env, cors);
 
       const playerMatch = pathname.match(/^\/api\/player\/([^/]+)$/);
       if (playerMatch) {
-        if (method === 'GET') return handlePlayerGet(request, env, playerMatch[1]);
-        if (method === 'PUT') return handlePlayerUpdate(request, env, playerMatch[1]);
+        if (method === 'GET') return handlePlayerGet(request, env, playerMatch[1], cors);
+        if (method === 'PUT') return handlePlayerUpdate(request, env, playerMatch[1], cors);
       }
 
       // LTTDP
       const lttdpMatch = pathname.match(/^\/api\/lttdp\/([^/]+)$/);
       if (lttdpMatch) {
-        if (method === 'GET') return handleLttdpGet(request, env, lttdpMatch[1]);
-        if (method === 'PUT') return handleLttdpPut(request, env, lttdpMatch[1]);
+        if (method === 'GET') return handleLttdpGet(request, env, lttdpMatch[1], cors);
+        if (method === 'PUT') return handleLttdpPut(request, env, lttdpMatch[1], cors);
       }
 
       // Sessions
       const sessionsLatestMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/latest$/);
-      if (sessionsLatestMatch && method === 'GET') return handleSessionLatest(request, env, sessionsLatestMatch[1]);
+      if (sessionsLatestMatch && method === 'GET') return handleSessionLatest(request, env, sessionsLatestMatch[1], cors);
 
       const sessionsListMatch = pathname.match(/^\/api\/sessions\/([^/]+)$/);
-      if (sessionsListMatch && method === 'GET') return handleSessionsList(request, env, sessionsListMatch[1]);
+      if (sessionsListMatch && method === 'GET') return handleSessionsList(request, env, sessionsListMatch[1], cors);
 
-      if (method === 'POST' && pathname === '/api/session') return handleSessionCreate(request, env);
+      if (method === 'POST' && pathname === '/api/session') return handleSessionCreate(request, env, cors);
 
       const sessionUpdateMatch = pathname.match(/^\/api\/session\/([^/]+)$/);
-      if (sessionUpdateMatch && method === 'PUT') return handleSessionUpdate(request, env, sessionUpdateMatch[1]);
+      if (sessionUpdateMatch && method === 'PUT') return handleSessionUpdate(request, env, sessionUpdateMatch[1], cors);
 
       // Guest
-      if (method === 'GET' && pathname === '/api/guest/info') return handleGuestInfo();
+      if (method === 'GET' && pathname === '/api/guest/info') return handleGuestInfo(cors);
 
-      return err('Not found', 404);
+      return err('Not found', 404, cors);
     } catch (e) {
-      return err('Internal server error', 500);
+      return err('Internal server error', 500, cors);
     }
   },
 };
