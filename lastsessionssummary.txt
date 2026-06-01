@@ -1,3 +1,68 @@
+SESSION SUMMARY — June 2026 (session 3)
+Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
+================================================================================
+
+WHAT WE FIXED / BUILT
+-----------------------
+
+1. COACH AUTH — SWITCHED FROM COOKIES TO SESSIONSTORAGE + HEADER
+   Root cause: the Worker (ctt-worker.andermd535.workers.dev) and Pages
+   (ctt-academy.pages.dev) are on different domains. Chrome and Safari block
+   cross-site cookies even with SameSite=None, so the session cookie set by
+   the Worker after OAuth was never sent back on subsequent requests — coach
+   pages appeared to load then immediately redirect to the landing page.
+
+   New flow:
+   - After GitHub OAuth, the Worker redirects to:
+       dashboard.html#session=TOKEN
+     (URL fragment — never sent to any server, not in browser history)
+   - auth.js captures the token from the hash on page load, stores it in
+     sessionStorage as 'ctt_coach_token', and strips the hash from the URL
+   - All coach API requests now send: X-Coach-Token: TOKEN (header)
+   - Worker validates the X-Coach-Token header instead of a cookie
+   - Logout sends X-Coach-Token to the Worker to delete the KV record,
+     then clears sessionStorage
+
+   Security tradeoff documented in CLAUDE.md: sessionStorage is readable by
+   JS (unlike HttpOnly cookies), but the strict CSP mitigates XSS. This
+   approach is CSRF-immune. Revisit when a custom domain is set up.
+
+   Files changed: worker/index.js, js/auth.js, js/api.js
+
+2. MULTI-COACH SUPPORT — OWNER_GITHUB_ID NOW COMMA-SEPARATED
+   Previously only one GitHub user ID could be the coach. Updated the Worker
+   to split OWNER_GITHUB_ID on commas and check against the full list.
+   Cooper's numeric GitHub user ID was added to the secret:
+     wrangler secret put OWNER_GITHUB_ID
+     value: 283034047,COOPERS_ID
+   Both Mitch and Cooper can now log in as coach independently.
+   No redeploy needed — Worker secrets take effect immediately.
+
+   Files changed: worker/index.js
+
+3. SESSION.HTML — FIXED ENDLESS SPINNER
+   session.js references document.getElementById('nav-back-link') to render
+   a "← Player" back link, but the element didn't exist in session.html.
+   The JS threw a TypeError silently, execution stopped, and the page was
+   stuck showing the default spinner forever. This bug was pre-existing but
+   only discoverable after auth was working (nobody could reach session.html
+   before the auth fix above).
+   Fixed by adding <div id="nav-back-link"> to session.html.
+
+   Files changed: session.html
+
+
+CURRENT STATE OF OWNER_GITHUB_ID SECRET
+-----------------------------------------
+  Both Mitch Anderson (283034047) and Cooper are set.
+  To add or change IDs in the future:
+    wrangler secret put OWNER_GITHUB_ID
+    Enter: ID1,ID2   (comma-separated, no spaces required but trim-safe)
+  To find a GitHub numeric user ID:
+    https://api.github.com/users/USERNAME  → look for "id" field
+
+
+================================================================================
 SESSION SUMMARY — June 1, 2026
 Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
 ================================================================================

@@ -64,6 +64,15 @@ less and ask.
 - **Hidden coach URL:** `/coach` page is not linked anywhere. Security through
   obscurity supplements OAuth — finding the URL still requires Cooper's GitHub
   account to pass auth.
+- **Coach session in sessionStorage (not HttpOnly cookie):** The coach session
+  token lives in `sessionStorage` and is sent as an `X-Coach-Token` header.
+  This means XSS could theoretically read it — mitigated by strict CSP
+  (`script-src 'self'`, no inline scripts, no CDN). The tradeoff was forced by
+  cross-site cookie blocking: the Worker (`*.workers.dev`) and Pages
+  (`*.pages.dev`) are different domains, so HttpOnly cookies were blocked by
+  Chrome and Safari regardless of `SameSite=None`. This approach is immune to
+  CSRF. When a custom domain is set up with both on the same eTLD+1, this can
+  be revisited.
 
 ---
 
@@ -81,11 +90,11 @@ Cloudflare KV (CTT_KV) — all data storage
 
 ### Two User Types
 
-**Coach (Cooper):**
+**Coach (Cooper and Mitch):**
 - Accesses via private bookmark: `https://ctt-academy.pages.dev/coach`
 - `coach.html` redirects to GitHub OAuth on the Worker
-- Worker validates numeric GitHub user ID against `OWNER_GITHUB_ID` secret
-- Session cookie: 32-byte random token, 7-day TTL, HttpOnly/Secure/SameSite=None
+- Worker validates numeric GitHub user ID against `OWNER_GITHUB_ID` secret (comma-separated list supports multiple coaches)
+- Session token: 32-byte random token, 7-day TTL, stored in `sessionStorage` as `ctt_coach_token`, sent as `X-Coach-Token` request header
 - Full read/write access to all data
 
 **Players/Parents:**
@@ -205,7 +214,7 @@ Set via `wrangler secret put` — never appear in any file:
 |---|---|
 | `GITHUB_CLIENT_ID` | OAuth app client ID |
 | `GITHUB_CLIENT_SECRET` | OAuth app client secret |
-| `OWNER_GITHUB_ID` | Numeric GitHub user ID of the coach (currently Mitch: 283034047) |
+| `OWNER_GITHUB_ID` | Comma-separated numeric GitHub user IDs allowed coach access (Mitch: 283034047, Cooper: set Jun 2026) |
 
 KV binding name: `CTT_KV`
 KV Namespace ID: `945aa45b37d94e22a71a5271a004b50c`
@@ -328,7 +337,8 @@ Before any push to `main`:
 2. Update About Me content in `worker/index.js` → `handleGuestInfo()` with
    Cooper's real bio
 3. Custom domain setup through Cloudflare dashboard
-4. Transfer `OWNER_GITHUB_ID` to Cooper's GitHub account when he has one
+4. ~~Transfer `OWNER_GITHUB_ID` to Cooper's GitHub account~~ — Done. Both Mitch
+   and Cooper have coach access via comma-separated `OWNER_GITHUB_ID` secret.
 5. GitHub Pages on CooperTeachesTennis/CTTAcademy requires Cooper to enable
    in repo Settings (org admin access — Mitch can't do it)
 
@@ -341,3 +351,4 @@ Before any push to `main`:
 | May 2026 | Initial CLAUDE.md created |
 | June 2026 | Full Phase 1 built and deployed — see lastsessionssummary.txt |
 | June 2026 | Coach nav unified with public nav; static view/edit toggle on player page; coach login hidden at /coach; CORS + auth URL fixes |
+| June 2026 | Switched coach auth from cross-site cookies to sessionStorage + X-Coach-Token header (fixes Chrome/Safari cookie blocking); added multi-coach support via comma-separated OWNER_GITHUB_ID; fixed session.html missing nav-back-link crash |
