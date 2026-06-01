@@ -28,10 +28,10 @@
     } catch { return dateStr; }
   }
 
-  function showMsg(container, msg, type = 'error') {
-    container.textContent = msg;
-    container.className = `alert alert--${type} is-visible`;
-    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  function showMsg(el, msg, type = 'error') {
+    el.textContent = msg;
+    el.className = `alert alert--${type} is-visible`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // ── New player form ──────────────────────────────────────────────────────
@@ -58,10 +58,6 @@
           <label for="n-goals">What they want to improve <span class="optional">(optional)</span></label>
           <textarea id="n-goals"></textarea>
         </div>
-        <div class="form-group">
-          <label for="n-parentEmail">Parent/guardian email <span class="optional">(optional)</span></label>
-          <input type="email" id="n-parentEmail" autocapitalize="none">
-        </div>
         <button class="btn btn--primary mt-16" id="save-new-btn" type="button">Create Player</button>
       </div>
     `;
@@ -86,13 +82,10 @@
           firstName, lastName, email, phone,
           ntrpLevel: document.getElementById('n-ntrp').value,
           improvementGoals: document.getElementById('n-goals').value.trim(),
-          parentEmail: document.getElementById('n-parentEmail').value.trim(),
         });
         const data = await window.CTTAPI.parseJson(res);
-
         if (res.status === 409) { showMsg(errorEl, 'A profile already exists for that email.'); return; }
         if (!res.ok || !data?.id) { showMsg(errorEl, data?.error || 'Failed to create player.'); return; }
-
         window.location.href = `/player.html?id=${data.id}`;
       } catch { showMsg(errorEl, 'Something went wrong. Please try again.'); }
       finally { btn.disabled = false; btn.textContent = 'Create Player'; }
@@ -104,6 +97,105 @@
   // ── Existing player ──────────────────────────────────────────────────────
 
   if (!playerId) { window.location.href = '/dashboard.html'; return; }
+
+  let currentPlayer = null;
+
+  function renderProfileView(player) {
+    const profileCard = document.getElementById('profile-card');
+    profileCard.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div class="card__title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Player Info</div>
+        <button class="btn btn--secondary btn--sm" id="edit-profile-btn" type="button">Edit</button>
+      </div>
+      <div id="profile-msg" class="alert" role="alert"></div>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-item__label">First Name</div>
+          <div class="info-item__value">${escHtml(player.firstName)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item__label">Last Name</div>
+          <div class="info-item__value">${escHtml(player.lastName)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item__label">Email</div>
+          <div class="info-item__value">${escHtml(player.email)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item__label">Phone</div>
+          <div class="info-item__value">${escHtml(player.phone)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item__label">NTRP Level</div>
+          <div class="info-item__value">${escHtml(player.ntrpLevel) || '—'}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item__label">Member Since</div>
+          <div class="info-item__value">${formatDate(player.createdAt)}</div>
+        </div>
+      </div>
+      ${player.improvementGoals ? `
+        <div class="info-item" style="margin-top:16px;">
+          <div class="info-item__label">What They Want to Improve</div>
+          <div class="info-item__value mt-8">${escHtml(player.improvementGoals)}</div>
+        </div>` : ''}
+    `;
+
+    document.getElementById('edit-profile-btn').addEventListener('click', () => {
+      renderProfileEdit(player);
+    });
+  }
+
+  function renderProfileEdit(player) {
+    const profileCard = document.getElementById('profile-card');
+    profileCard.innerHTML = `
+      <div class="card__title">Edit Player Info</div>
+      <div id="profile-msg" class="alert" role="alert"></div>
+      <div class="form-group"><label for="e-firstName">First name</label><input type="text" id="e-firstName" value="${escHtml(player.firstName)}"></div>
+      <div class="form-group"><label for="e-lastName">Last name</label><input type="text" id="e-lastName" value="${escHtml(player.lastName)}"></div>
+      <div class="form-group"><label for="e-email">Email</label><input type="email" id="e-email" value="${escHtml(player.email)}" autocapitalize="none"></div>
+      <div class="form-group"><label for="e-phone">Phone</label><input type="tel" id="e-phone" value="${escHtml(player.phone)}"></div>
+      <div class="form-group">
+        <label for="e-ntrp">NTRP level</label>
+        <select id="e-ntrp">
+          <option value="">— None —</option>
+          ${['Beginner','2.5','3.0','3.5','4.0','4.5','5.0+'].map(v => `<option${player.ntrpLevel===v?' selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label for="e-goals">What they want to improve</label><textarea id="e-goals">${escHtml(player.improvementGoals)}</textarea></div>
+      <div class="btn-row">
+        <button class="btn btn--primary btn--sm" id="save-profile-btn" type="button">Save</button>
+        <button class="btn btn--secondary btn--sm" id="cancel-profile-btn" type="button">Cancel</button>
+      </div>
+    `;
+
+    document.getElementById('cancel-profile-btn').addEventListener('click', () => {
+      renderProfileView(currentPlayer);
+    });
+
+    document.getElementById('save-profile-btn').addEventListener('click', async () => {
+      const msgEl = document.getElementById('profile-msg');
+      const btn = document.getElementById('save-profile-btn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const res = await window.CTTAPI.apiPut(`/api/player/${playerId}`, {
+          firstName: document.getElementById('e-firstName').value.trim(),
+          lastName: document.getElementById('e-lastName').value.trim(),
+          email: document.getElementById('e-email').value.trim(),
+          phone: document.getElementById('e-phone').value.trim(),
+          ntrpLevel: document.getElementById('e-ntrp').value,
+          improvementGoals: document.getElementById('e-goals').value.trim(),
+        });
+        const data = await window.CTTAPI.parseJson(res);
+        if (!res.ok) { showMsg(msgEl, data?.error || 'Save failed.'); return; }
+        currentPlayer = data;
+        renderProfileView(currentPlayer);
+      } catch { showMsg(document.getElementById('profile-msg'), 'Something went wrong.'); }
+      finally { btn.disabled = false; btn.textContent = 'Save'; }
+    });
+  }
+
+  // ── Main render ──────────────────────────────────────────────────────────
 
   try {
     const [playerRes, lttdpRes, sessionsRes] = await Promise.all([
@@ -120,6 +212,7 @@
 
     if (!player) { mainContent.innerHTML = '<div class="card"><p>Player not found.</p></div>'; return; }
 
+    currentPlayer = player;
     document.title = `${player.firstName} ${player.lastName} — Cooper Teaches Tennis`;
 
     mainContent.innerHTML = `
@@ -128,79 +221,69 @@
         <a href="session.html?playerId=${escHtml(playerId)}" class="btn btn--primary btn--sm">+ Log session</a>
       </div>
 
-      <!-- Profile edit -->
-      <div class="card">
-        <div class="card__title">Player Info</div>
-        <div id="profile-msg" class="alert" role="alert"></div>
-        <div class="form-group"><label for="e-firstName">First name</label><input type="text" id="e-firstName" value="${escHtml(player.firstName)}"></div>
-        <div class="form-group"><label for="e-lastName">Last name</label><input type="text" id="e-lastName" value="${escHtml(player.lastName)}"></div>
-        <div class="form-group"><label for="e-email">Email</label><input type="email" id="e-email" value="${escHtml(player.email)}" autocapitalize="none"></div>
-        <div class="form-group"><label for="e-phone">Phone</label><input type="tel" id="e-phone" value="${escHtml(player.phone)}"></div>
-        <div class="form-group">
-          <label for="e-ntrp">NTRP level</label>
-          <select id="e-ntrp">
-            <option value="">— None —</option>
-            ${['Beginner','2.5','3.0','3.5','4.0','4.5','5.0+'].map(v => `<option${player.ntrpLevel===v?' selected':''}>${v}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group"><label for="e-goals">What they want to improve</label><textarea id="e-goals">${escHtml(player.improvementGoals)}</textarea></div>
-        <div class="form-group"><label for="e-parentEmail">Parent/guardian email</label><input type="email" id="e-parentEmail" value="${escHtml(player.parentEmail)}" autocapitalize="none"></div>
-        <button class="btn btn--primary btn--sm mt-16" id="save-profile-btn" type="button">Save Profile</button>
-      </div>
+      <div class="card" id="profile-card"></div>
 
-      <!-- LTTDP -->
       <div class="card mt-16">
-        <div class="card__title">Long-Term Tennis Development Plan</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div class="card__title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Long-Term Tennis Development Plan</div>
+          <button class="btn btn--secondary btn--sm" id="edit-lttdp-btn" type="button">Edit</button>
+        </div>
         <div id="lttdp-msg" class="alert" role="alert"></div>
-        <div class="lttdp-section">
-          <div class="lttdp-section__label">Goals</div>
-          <textarea id="lttdp-goals" style="margin-top:8px;">${escHtml(lttdp?.goals)}</textarea>
+        <div id="lttdp-view"></div>
+        <div id="lttdp-edit" style="display:none;">
+          <div class="lttdp-section"><div class="lttdp-section__label">Goals</div><textarea id="lttdp-goals" style="margin-top:8px;">${escHtml(lttdp?.goals)}</textarea></div>
+          <div class="lttdp-section"><div class="lttdp-section__label">Technical Skills</div><textarea id="lttdp-technical" style="margin-top:8px;">${escHtml(lttdp?.technicalSkills)}</textarea></div>
+          <div class="lttdp-section"><div class="lttdp-section__label">Patterns &amp; Plays</div><textarea id="lttdp-patterns" style="margin-top:8px;">${escHtml(lttdp?.patternsAndPlays)}</textarea></div>
+          <div class="lttdp-section"><div class="lttdp-section__label">On / Off Season</div><textarea id="lttdp-seasons" style="margin-top:8px;">${escHtml(lttdp?.onOffSeasons)}</textarea></div>
+          <div class="btn-row">
+            <button class="btn btn--primary btn--sm" id="save-lttdp-btn" type="button">Save</button>
+            <button class="btn btn--secondary btn--sm" id="cancel-lttdp-btn" type="button">Cancel</button>
+          </div>
         </div>
-        <div class="lttdp-section">
-          <div class="lttdp-section__label">Technical Skills</div>
-          <textarea id="lttdp-technical" style="margin-top:8px;">${escHtml(lttdp?.technicalSkills)}</textarea>
-        </div>
-        <div class="lttdp-section">
-          <div class="lttdp-section__label">Patterns &amp; Plays</div>
-          <textarea id="lttdp-patterns" style="margin-top:8px;">${escHtml(lttdp?.patternsAndPlays)}</textarea>
-        </div>
-        <div class="lttdp-section">
-          <div class="lttdp-section__label">On / Off Season</div>
-          <textarea id="lttdp-seasons" style="margin-top:8px;">${escHtml(lttdp?.onOffSeasons)}</textarea>
-        </div>
-        <button class="btn btn--primary btn--sm mt-16" id="save-lttdp-btn" type="button">Save LTTDP</button>
       </div>
 
-      <!-- Sessions -->
       <div class="card mt-16">
         <div class="card__title">Session History</div>
         <div id="sessions-body"></div>
       </div>
     `;
 
-    // Save profile
-    document.getElementById('save-profile-btn').addEventListener('click', async () => {
-      const msgEl = document.getElementById('profile-msg');
-      const btn = document.getElementById('save-profile-btn');
-      btn.disabled = true; btn.textContent = 'Saving…';
-      try {
-        const res = await window.CTTAPI.apiPut(`/api/player/${playerId}`, {
-          firstName: document.getElementById('e-firstName').value.trim(),
-          lastName: document.getElementById('e-lastName').value.trim(),
-          email: document.getElementById('e-email').value.trim(),
-          phone: document.getElementById('e-phone').value.trim(),
-          ntrpLevel: document.getElementById('e-ntrp').value,
-          improvementGoals: document.getElementById('e-goals').value.trim(),
-          parentEmail: document.getElementById('e-parentEmail').value.trim(),
-        });
-        const data = await window.CTTAPI.parseJson(res);
-        if (!res.ok) { showMsg(msgEl, data?.error || 'Save failed.'); return; }
-        showMsg(msgEl, 'Profile saved.', 'success');
-      } catch { showMsg(msgEl, 'Something went wrong.'); }
-      finally { btn.disabled = false; btn.textContent = 'Save Profile'; }
+    // Render profile view (static by default)
+    renderProfileView(player);
+
+    // LTTDP view mode
+    function renderLttdpView() {
+      const view = document.getElementById('lttdp-view');
+      const sections = [
+        { label: 'Goals', value: lttdp?.goals },
+        { label: 'Technical Skills', value: lttdp?.technicalSkills },
+        { label: 'Patterns & Plays', value: lttdp?.patternsAndPlays },
+        { label: 'On / Off Season', value: lttdp?.onOffSeasons },
+      ];
+      view.innerHTML = sections.map(s => `
+        <div class="lttdp-section">
+          <div class="lttdp-section__label">${s.label}</div>
+          ${s.value && s.value.trim()
+            ? `<div class="lttdp-section__content">${escHtml(s.value)}</div>`
+            : `<div class="lttdp-section__empty">Not filled in yet.</div>`}
+        </div>
+      `).join('');
+    }
+
+    renderLttdpView();
+
+    document.getElementById('edit-lttdp-btn').addEventListener('click', () => {
+      document.getElementById('lttdp-view').style.display = 'none';
+      document.getElementById('lttdp-edit').style.display = '';
+      document.getElementById('edit-lttdp-btn').style.display = 'none';
     });
 
-    // Save LTTDP
+    document.getElementById('cancel-lttdp-btn').addEventListener('click', () => {
+      document.getElementById('lttdp-view').style.display = '';
+      document.getElementById('lttdp-edit').style.display = 'none';
+      document.getElementById('edit-lttdp-btn').style.display = '';
+    });
+
     document.getElementById('save-lttdp-btn').addEventListener('click', async () => {
       const msgEl = document.getElementById('lttdp-msg');
       const btn = document.getElementById('save-lttdp-btn');
@@ -214,12 +297,20 @@
         });
         const data = await window.CTTAPI.parseJson(res);
         if (!res.ok) { showMsg(msgEl, data?.error || 'Save failed.'); return; }
-        showMsg(msgEl, 'LTTDP saved.', 'success');
-      } catch { showMsg(msgEl, 'Something went wrong.'); }
-      finally { btn.disabled = false; btn.textContent = 'Save LTTDP'; }
+        // Update local lttdp reference and return to view
+        lttdp.goals = data.goals;
+        lttdp.technicalSkills = data.technicalSkills;
+        lttdp.patternsAndPlays = data.patternsAndPlays;
+        lttdp.onOffSeasons = data.onOffSeasons;
+        renderLttdpView();
+        document.getElementById('lttdp-view').style.display = '';
+        document.getElementById('lttdp-edit').style.display = 'none';
+        document.getElementById('edit-lttdp-btn').style.display = '';
+      } catch { showMsg(document.getElementById('lttdp-msg'), 'Something went wrong.'); }
+      finally { btn.disabled = false; btn.textContent = 'Save'; }
     });
 
-    // Render sessions
+    // Sessions
     const sessionsBody = document.getElementById('sessions-body');
     const sessions = sessionsData?.sessions || [];
 
