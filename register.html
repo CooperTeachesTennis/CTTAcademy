@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Profile — Cooper Teaches Tennis</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-logo">Cooper Teaches Tennis</a>
+  </nav>
+
+  <div class="container mt-24">
+    <h1 style="font-size:1.375rem;font-weight:700;color:var(--color-primary-dark);margin-bottom:4px;">
+      Create Your Player Profile
+    </h1>
+    <p class="text-muted" style="margin-bottom:24px;">
+      Your profile helps Cooper track your progress and plan your development.
+    </p>
+
+    <div class="card">
+      <div id="register-error" class="alert alert-error" role="alert"></div>
+
+      <p class="card__subtitle" style="display:block;margin-bottom:16px;font-size:0.8125rem;color:var(--color-text-muted);">
+        Fields marked with * are required.
+      </p>
+
+      <div class="form-group">
+        <label for="firstName">First name *</label>
+        <input type="text" id="firstName" autocomplete="given-name">
+      </div>
+
+      <div class="form-group">
+        <label for="lastName">Last name *</label>
+        <input type="text" id="lastName" autocomplete="family-name">
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email address *</label>
+        <input type="email" id="email" autocomplete="email" autocapitalize="none">
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Phone number *</label>
+        <input type="tel" id="phone" autocomplete="tel" placeholder="555-123-4567">
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label for="ntrpLevel">NTRP level <span class="optional">(optional)</span></label>
+        <select id="ntrpLevel">
+          <option value="">— Select level —</option>
+          <option value="Beginner">Beginner</option>
+          <option value="2.5">2.5</option>
+          <option value="3.0">3.0</option>
+          <option value="3.5">3.5</option>
+          <option value="4.0">4.0</option>
+          <option value="4.5">4.5</option>
+          <option value="5.0+">5.0+</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="improvementGoals">
+          What would you like to improve? <span class="optional">(optional)</span>
+        </label>
+        <textarea id="improvementGoals" placeholder="e.g. Backhand consistency, serve, net play…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="parentEmail">
+          Parent or guardian email <span class="optional">(optional)</span>
+        </label>
+        <input type="email" id="parentEmail" autocomplete="email" autocapitalize="none">
+        <p class="text-muted mt-8">
+          If a parent manages this account, enter their email so they can also access this profile.
+        </p>
+      </div>
+
+      <button class="btn btn--primary mt-16" id="register-btn" type="button">
+        Create My Profile
+      </button>
+    </div>
+
+    <div class="text-center mt-16">
+      <a href="index.html" class="btn btn--ghost">← Back to login</a>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/register.js"></script>
+</body>
+</html>

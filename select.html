@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Profile — Cooper Teaches Tennis</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-logo">Cooper Teaches Tennis</a>
+  </nav>
+
+  <div class="container mt-24">
+    <h1 style="font-size:1.25rem;font-weight:700;color:var(--color-primary-dark);margin-bottom:8px;">
+      Which profile would you like to view?
+    </h1>
+    <p class="text-muted" style="margin-bottom:24px;">
+      Multiple players are linked to your email address. Select a profile to continue.
+    </p>
+
+    <div class="selector-grid" id="selector-grid"></div>
+
+    <div class="text-center mt-24">
+      <a href="index.html" class="btn btn--ghost">← Use a different email</a>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/select.js"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile — Cooper Teaches Tennis</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="nav-bar">
+    <a href="index.html" class="nav-logo">Cooper Teaches Tennis</a>
+    <div class="nav-actions">
+      <button class="btn btn--ghost" id="logout-btn" type="button" style="color:var(--color-accent);">
+        Sign out
+      </button>
+    </div>
+  </nav>
+
+  <div class="container mt-24" id="main-content">
+    <div class="spinner"></div>
+  </div>
+
+  <template id="profile-template">
+    <div>
+      <!-- Player info -->
+      <div class="card">
+        <div class="card__title" id="player-name"></div>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-item__label">Email</div>
+            <div class="info-item__value" id="player-email"></div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Phone</div>
+            <div class="info-item__value" id="player-phone"></div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">NTRP Level</div>
+            <div class="info-item__value" id="player-ntrp"></div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">Member since</div>
+            <div class="info-item__value" id="player-since"></div>
+          </div>
+        </div>
+        <div id="player-goals-wrap" style="margin-top:16px;">
+          <div class="info-item__label">What I want to improve</div>
+          <div class="info-item__value mt-8" id="player-goals"></div>
+        </div>
+      </div>
+
+      <!-- LTTDP -->
+      <div class="card mt-16">
+        <div class="card__title">Long-Term Tennis Development Plan</div>
+        <div id="lttdp-body">
+          <div class="lttdp-section">
+            <div class="lttdp-section__label">Goals</div>
+            <div class="lttdp-section__content" id="lttdp-goals"></div>
+          </div>
+          <div class="lttdp-section">
+            <div class="lttdp-section__label">Technical Skills</div>
+            <div class="lttdp-section__content" id="lttdp-technical"></div>
+          </div>
+          <div class="lttdp-section">
+            <div class="lttdp-section__label">Patterns &amp; Plays</div>
+            <div class="lttdp-section__content" id="lttdp-patterns"></div>
+          </div>
+          <div class="lttdp-section">
+            <div class="lttdp-section__label">On / Off Season</div>
+            <div class="lttdp-section__content" id="lttdp-seasons"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sessions -->
+      <div class="card mt-16">
+        <div class="card__title">Session Notes</div>
+        <div id="sessions-body"></div>
+      </div>
+    </div>
+  </template>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>
