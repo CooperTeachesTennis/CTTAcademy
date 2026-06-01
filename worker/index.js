@@ -18,7 +18,7 @@ function getCorsHeaders(request) {
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id, X-Coach-Token',
     'Access-Control-Allow-Credentials': 'true',
   };
 }
@@ -41,16 +41,6 @@ function redirect(location, status = 302) {
   });
 }
 
-function parseCookies(header) {
-  const cookies = {};
-  if (!header) return cookies;
-  for (const part of header.split(';')) {
-    const [k, ...v] = part.trim().split('=');
-    if (k) cookies[k.trim()] = v.join('=').trim();
-  }
-  return cookies;
-}
-
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
 }
@@ -70,8 +60,7 @@ function generateId() {
 }
 
 async function validateOwnerSession(request, env) {
-  const cookies = parseCookies(request.headers.get('Cookie'));
-  const token = cookies['ctt_session'];
+  const token = request.headers.get('X-Coach-Token');
   if (!token) return null;
   try {
     const session = await env.CTT_KV.get(`owner:session:${token}`, { type: 'json' });
@@ -80,7 +69,8 @@ async function validateOwnerSession(request, env) {
       await env.CTT_KV.delete(`owner:session:${token}`);
       return null;
     }
-    if (String(session.githubUserId) !== String(env.OWNER_GITHUB_ID)) return null;
+    const allowedIds = String(env.OWNER_GITHUB_ID).split(',').map(s => s.trim());
+    if (!allowedIds.includes(String(session.githubUserId))) return null;
     return session;
   } catch {
     return null;
@@ -143,7 +133,8 @@ async function handleAuthCallback(request, env) {
   });
   const githubUser = await userRes.json();
 
-  if (String(githubUser.id) !== String(env.OWNER_GITHUB_ID)) {
+  const allowedIds = String(env.OWNER_GITHUB_ID).split(',').map(s => s.trim());
+  if (!allowedIds.includes(String(githubUser.id))) {
     return err('Access denied', 403);
   }
 
@@ -165,8 +156,7 @@ async function handleAuthCallback(request, env) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `${FRONTEND_URL}/dashboard.html`,
-      'Set-Cookie': `ctt_session=${sessionToken}; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/`,
+      Location: `${FRONTEND_URL}/dashboard.html#session=${sessionToken}`,
       ...SECURITY_HEADERS,
     },
   });
@@ -179,18 +169,9 @@ async function handleAuthCheck(request, env, cors) {
 }
 
 async function handleAuthLogout(request, env, cors) {
-  const cookies = parseCookies(request.headers.get('Cookie'));
-  const token = cookies['ctt_session'];
+  const token = request.headers.get('X-Coach-Token');
   if (token) await env.CTT_KV.delete(`owner:session:${token}`);
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': 'ctt_session=; HttpOnly; Secure; SameSite=None; Max-Age=0; Path=/',
-      ...SECURITY_HEADERS,
-      ...cors,
-    },
-  });
+  return json({ ok: true }, 200, cors);
 }
 
 // ── Player lookup ─────────────────────────────────────────────────────────────

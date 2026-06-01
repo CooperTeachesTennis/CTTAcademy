@@ -6,6 +6,7 @@
 
   async function apiFetch(path, options = {}) {
     const { playerId } = window.CTTAuth ? window.CTTAuth.getPlayerSession() : {};
+    const coachToken = window.CTTAuth ? window.CTTAuth.getCoachToken() : null;
 
     const headers = {
       'Content-Type': 'application/json',
@@ -16,9 +17,12 @@
       headers['X-Player-Id'] = playerId;
     }
 
+    if (coachToken) {
+      headers['X-Coach-Token'] = coachToken;
+    }
+
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
-      credentials: 'include',
       headers,
     });
 

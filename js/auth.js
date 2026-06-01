@@ -3,6 +3,28 @@
   const SESSION_KEY = 'ctt_player_id';
   const EMAIL_KEY = 'ctt_player_email';
   const LOOKUP_KEY = 'ctt_lookup_result';
+  const COACH_TOKEN_KEY = 'ctt_coach_token';
+
+  // Capture session token from URL hash immediately on load (set by OAuth callback).
+  // Hash fragments are never sent to servers, so the token is only visible in the browser.
+  (function captureHashToken() {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const params = new URLSearchParams(hash);
+    const token = params.get('session');
+    if (token) {
+      sessionStorage.setItem(COACH_TOKEN_KEY, token);
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  })();
+
+  function getCoachToken() {
+    return sessionStorage.getItem(COACH_TOKEN_KEY);
+  }
+
+  function clearCoachToken() {
+    sessionStorage.removeItem(COACH_TOKEN_KEY);
+  }
 
   function getPlayerSession() {
     return {
@@ -40,8 +62,12 @@
   }
 
   async function checkOwnerAuth() {
+    const token = getCoachToken();
+    if (!token) return false;
     try {
-      const res = await fetch(`${API_BASE}/api/auth/check`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/auth/check`, {
+        headers: { 'X-Coach-Token': token },
+      });
       const data = await res.json();
       return data.authenticated === true;
     } catch {
@@ -49,7 +75,6 @@
     }
   }
 
-  // On protected owner pages: if not authenticated, redirect to index
   async function requireOwnerAuth() {
     const ok = await checkOwnerAuth();
     if (!ok) {
@@ -58,7 +83,6 @@
     return ok;
   }
 
-  // On player-facing pages: validate that the URL's playerId matches sessionStorage
   function requirePlayerAuth(expectedPlayerId) {
     const { playerId } = getPlayerSession();
     if (!playerId || playerId !== expectedPlayerId) {
@@ -69,7 +93,6 @@
     return true;
   }
 
-  // On index.html: redirect already-authenticated users away from the landing page
   async function redirectIfAuthenticated() {
     const isOwner = await checkOwnerAuth();
     if (isOwner) {
@@ -85,14 +108,23 @@
   }
 
   async function logout() {
+    const token = getCoachToken();
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+      if (token) {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: 'POST',
+          headers: { 'X-Coach-Token': token },
+        });
+      }
     } catch { /* best effort */ }
+    clearCoachToken();
     clearPlayerSession();
     window.location.href = '/index.html';
   }
 
   window.CTTAuth = {
+    getCoachToken,
+    clearCoachToken,
     getPlayerSession,
     setPlayerSession,
     clearPlayerSession,
