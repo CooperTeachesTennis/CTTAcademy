@@ -1,4 +1,5 @@
 (function () {
+  const API_BASE = 'https://ctt-worker.andermd535.workers.dev';
   const SESSION_KEY = 'ctt_player_id';
   const EMAIL_KEY = 'ctt_player_email';
   const LOOKUP_KEY = 'ctt_lookup_result';
@@ -40,7 +41,7 @@
 
   async function checkOwnerAuth() {
     try {
-      const res = await fetch('/api/auth/check', { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/auth/check`, { credentials: 'include' });
       const data = await res.json();
       return data.authenticated === true;
     } catch {
@@ -85,7 +86,7 @@
 
   async function logout() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
     } catch { /* best effort */ }
     clearPlayerSession();
     window.location.href = '/index.html';
