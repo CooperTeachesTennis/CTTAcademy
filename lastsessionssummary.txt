@@ -112,6 +112,22 @@ DESIGN DECISIONS MADE THIS SESSION
   distribution list
 - Parent/child active inheritance deferred to a future session
 
+5. GROUP SESSION PLAYER MULTI-SELECT — FILTER + CHIPS
+   Improved the group session player picker for large rosters.
+
+   Changes:
+   - Filter input (🔍) above the checkbox list — Cooper types a name and the
+     list narrows in real time, no API calls, pure JS filtering
+   - Selected players appear as green chips (e.g. "Sarah J. ×") above the
+     filter input so Cooper can see the full group at a glance without scrolling
+   - Clicking × on a chip deselects that player, unchecks their checkbox, and
+     removes their individual notes field — everything stays in sync
+   - List is still sorted alphabetically by last name (from the API)
+   - No backend changes needed
+
+   Files changed: js/session.js, css/style.css
+
+
 OPEN / DEFERRED
 -----------------
 1. Parent/guardian account model redesign — one parent email → child sub-profiles

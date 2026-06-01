@@ -249,8 +249,15 @@
 
         <div class="form-group">
           <label>Players in this session *</label>
+          <div id="player-chips" class="player-chips" style="display:none;margin-bottom:8px;"></div>
           <div id="player-list-loading" style="font-size:0.875rem;color:var(--color-text-muted);padding:10px 0;">Loading players…</div>
-          <div id="player-checkbox-list" class="player-checkbox-list" style="display:none;"></div>
+          <div id="player-search-wrap" style="display:none;">
+            <div class="search-bar" style="margin-bottom:6px;">
+              <span class="search-bar__icon" aria-hidden="true">🔍</span>
+              <input type="text" id="player-filter" placeholder="Filter players…" autocomplete="off">
+            </div>
+            <div id="player-checkbox-list" class="player-checkbox-list"></div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -307,10 +314,40 @@
 
     const listEl = document.getElementById('player-checkbox-list');
     const loadingEl = document.getElementById('player-list-loading');
+    const searchWrap = document.getElementById('player-search-wrap');
+    const chipsEl = document.getElementById('player-chips');
+    const filterInput = document.getElementById('player-filter');
+
     loadingEl.style.display = 'none';
-    listEl.style.display = '';
+    searchWrap.style.display = '';
 
     const checkedPlayers = new Set([playerId]);
+
+    function renderChips() {
+      const selected = allActivePlayers.filter(p => checkedPlayers.has(p.id));
+      if (selected.length === 0) {
+        chipsEl.style.display = 'none';
+        chipsEl.innerHTML = '';
+        return;
+      }
+      chipsEl.style.display = 'flex';
+      chipsEl.innerHTML = selected.map(p => `
+        <span class="player-chip">
+          ${escHtml(p.firstName)} ${escHtml(p.lastName[0])}.
+          <button type="button" class="player-chip__remove" data-player-id="${escHtml(p.id)}" aria-label="Remove ${escHtml(p.firstName)}">×</button>
+        </span>
+      `).join('');
+      chipsEl.querySelectorAll('.player-chip__remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = btn.dataset.playerId;
+          checkedPlayers.delete(pid);
+          const cb = document.getElementById(`cb-${pid}`);
+          if (cb) cb.checked = false;
+          renderChips();
+          refreshPerPlayerNotes();
+        });
+      });
+    }
 
     function refreshPerPlayerNotes() {
       const section = document.getElementById('per-player-section');
@@ -324,7 +361,6 @@
 
       section.style.display = '';
 
-      // Preserve existing textarea values
       const existing = {};
       notesContainer.querySelectorAll('textarea[data-player-id]').forEach(ta => {
         existing[ta.dataset.playerId] = ta.value;
@@ -338,27 +374,36 @@
       `).join('');
     }
 
+    // Filter input
+    filterInput.addEventListener('input', () => {
+      const q = filterInput.value.trim().toLowerCase();
+      listEl.querySelectorAll('.player-checkbox-item').forEach(item => {
+        const text = item.querySelector('label').textContent.toLowerCase();
+        item.style.display = !q || text.includes(q) ? '' : 'none';
+      });
+    });
+
+    // Build checkbox list
     for (const p of allActivePlayers) {
       const isPreSelected = p.id === playerId;
       const item = document.createElement('div');
       item.className = 'player-checkbox-item';
-
       const cbId = `cb-${p.id}`;
       item.innerHTML = `
         <input type="checkbox" id="${cbId}" ${isPreSelected ? 'checked' : ''}>
         <label for="${cbId}">${escHtml(p.firstName)} ${escHtml(p.lastName)}${p.ntrpLevel ? ' · ' + escHtml(p.ntrpLevel) : ''}</label>
       `;
-
       const cb = item.querySelector('input');
       cb.addEventListener('change', () => {
         if (cb.checked) checkedPlayers.add(p.id);
         else checkedPlayers.delete(p.id);
+        renderChips();
         refreshPerPlayerNotes();
       });
-
       listEl.appendChild(item);
     }
 
+    renderChips();
     refreshPerPlayerNotes();
 
     document.getElementById('save-session-btn').addEventListener('click', async () => {
@@ -383,7 +428,6 @@
         return;
       }
 
-      // Collect per-player notes
       const individualNotes = {};
       document.querySelectorAll('textarea[data-player-id]').forEach(ta => {
         individualNotes[ta.dataset.playerId] = ta.value.trim();

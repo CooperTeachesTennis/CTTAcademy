@@ -825,6 +825,44 @@ select {
   gap: 14px;
 }
 
+/* ── Player chips (group session selection) ── */
+
+.player-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 4px 8px 4px 12px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.player-chip__remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  font-family: var(--font-base);
+  display: flex;
+  align-items: center;
+}
+
+.player-chip__remove:hover {
+  color: #fff;
+}
+
 .per-player-notes__item label {
   font-size: 0.8rem;
   color: var(--color-text-muted);

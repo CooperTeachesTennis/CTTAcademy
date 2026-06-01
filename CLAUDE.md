@@ -257,9 +257,9 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
   for inactive players; registration blocked with tailored message for inactive email;
   select.html shows Inactive badge for inactive players in parent selector
 - **Group sessions:** "Group lesson" toggle on session form; multi-player checkbox list
-  with pre-selected current player; shared notes + optional per-player individual notes;
-  all records linked by `groupSessionId`; edit mode shows shared notes (propagates to
-  all group members) + this player's individual notes
+  with real-time filter input and selected-player chips (click × to deselect); shared
+  notes + optional per-player individual notes; all records linked by `groupSessionId`;
+  edit mode shows shared notes (propagates to all group members) + this player's individual notes
 - **Analytics panel:** Stats cards on dashboard — Active Players, Sessions Taught
   (deduplicated by groupSessionId), Inactive count (shown when > 0); NTRP breakdown chips
 - **CSV export:** "Export CSV" button on dashboard — active players only, dated filename,
