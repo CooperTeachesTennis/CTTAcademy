@@ -165,17 +165,28 @@ CTTAcademy/
 ## KV Data Schema
 
 ```
-player:{playerId}             Full player object
+player:{playerId}             Full player object (includes active: bool field)
 email-index:{email}           Array of playerIds linked to that email
 lttdp:{playerId}              LTTDP object (4 sections)
 sessions:list:{playerId}      Ordered array of session IDs (newest first)
-session:{sessionId}           Individual session object
+session:{sessionId}           Individual or group session object
 players:all                   Array of all player IDs (for dashboard)
 owner:session:{token}         Coach session (32-byte random token, 7-day TTL)
 oauth:state:{state}           CSRF protection for OAuth (10-min TTL)
 ```
 
 Player and session IDs are UUID v4. Email keys are always lowercased + trimmed.
+
+### Player object fields
+`id, firstName, lastName, email, phone, ntrpLevel, improvementGoals, parentEmail,
+active (bool, default true), createdAt, updatedAt`
+Old records without `active` are treated as `active: true` on read.
+
+### Session object fields
+Individual: `id, playerId, date, durationMinutes, topicsCovered, notes, createdAt, updatedAt`
+Group: adds `isGroup: true, groupSessionId, groupSize, groupMemberSessionIds[], sharedNotes, individualNotes`
+— `groupSessionId` links all player records from the same group lesson for analytics deduplication.
+— `groupMemberSessionIds` allows sharedNotes edits to propagate to all group members.
 
 ---
 
@@ -195,7 +206,8 @@ Referrer-Policy headers. CORS is locked to `ctt-academy.pages.dev` and
 | POST /api/player | none | Create player (registration) |
 | GET /api/player/:id | cookie or X-Player-Id | Get player |
 | PUT /api/player/:id | cookie | Update player (coach only) |
-| GET /api/players | cookie | All players (coach dashboard) |
+| GET /api/players | cookie | All players; `?include_inactive=true` to include inactive |
+| GET /api/analytics | cookie | Stats: active/inactive counts, NTRP distribution, unique session count |
 | GET /api/lttdp/:id | cookie or X-Player-Id | Get LTTDP |
 | PUT /api/lttdp/:id | cookie | Update LTTDP (coach only) |
 | GET /api/sessions/:id | cookie or X-Player-Id | Get session list |
@@ -240,31 +252,36 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
 - Link Tree: Instagram, TikTok, LinkedIn
 - About Me: fetched from Worker
 - Coach login hidden at `/coach` (not linked from anywhere)
+- **Active/inactive players:** Coach toggles per-player on player.html; inactive badge +
+  greyed-out card on dashboard; "Show Inactive" toggle; one-time modal on profile.html
+  for inactive players; registration blocked with tailored message for inactive email;
+  select.html shows Inactive badge for inactive players in parent selector
+- **Group sessions:** "Group lesson" toggle on session form; multi-player checkbox list
+  with pre-selected current player; shared notes + optional per-player individual notes;
+  all records linked by `groupSessionId`; edit mode shows shared notes (propagates to
+  all group members) + this player's individual notes
+- **Analytics panel:** Stats cards on dashboard — Active Players, Sessions Taught
+  (deduplicated by groupSessionId), Inactive count (shown when > 0); NTRP breakdown chips
+- **CSV export:** "Export CSV" button on dashboard — active players only, dated filename,
+  pure JS (no libraries)
 
 ### Known Issues / Flagged for Future Session
 
 - Parent/guardian account model needs redesign. Field exists in data model and
   player self-registration but removed from coach UI until the flow is rethought.
-  Goal: one parent email creates and manages multiple child sub-profiles.
+  Goal: one parent email → parent account with active/inactive control; child
+  profiles as sub-records inheriting parent's status. Deferred — deserves its own session.
 
 ### Not Built — Do Not Add Without Discussion
 
 - Scheduling
 - Payments
 - File or video uploads
-- Email notifications
+- Email sending / newsletter system (CSV export covers distribution list use case)
 - Blog/newsletter system
 - Merch store backend
 - Coach editing privileges on Home, Store, Education, About Me pages (planned but not built)
-
-### Not Built — Do Not Add Without Discussion
-
-- Scheduling
-- Payments
-- File or video uploads
-- Email notifications
-- Blog/newsletter system
-- Merch store backend
+- Instagram Reels on About Me page (discussed; deferred until Cooper decides he wants it)
 
 ---
 
@@ -352,3 +369,4 @@ Before any push to `main`:
 | June 2026 | Full Phase 1 built and deployed — see lastsessionssummary.txt |
 | June 2026 | Coach nav unified with public nav; static view/edit toggle on player page; coach login hidden at /coach; CORS + auth URL fixes |
 | June 2026 | Switched coach auth from cross-site cookies to sessionStorage + X-Coach-Token header (fixes Chrome/Safari cookie blocking); added multi-coach support via comma-separated OWNER_GITHUB_ID; fixed session.html missing nav-back-link crash |
+| June 2026 | Active/inactive players, group sessions, analytics panel, CSV export — see lastsessionssummary.txt |
