@@ -28,10 +28,17 @@
   </nav>
 
   <div class="container--wide mt-24" style="padding:24px 16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+    <div id="stats-container"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
       <h1 style="font-size:1.375rem;font-weight:700;color:var(--color-primary-dark);">Your Players</h1>
-      <a href="player.html?new=true" class="btn btn--primary btn--sm">+ Add player</a>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn--secondary btn--sm" id="export-csv-btn" type="button">Export CSV</button>
+        <a href="player.html?new=true" class="btn btn--primary btn--sm">+ Add player</a>
+      </div>
     </div>
+
+    <div class="dashboard-toolbar" id="dashboard-toolbar"></div>
 
     <div class="search-bar">
       <span class="search-bar__icon" aria-hidden="true">🔍</span>

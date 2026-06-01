@@ -59,6 +59,10 @@ function generateId() {
   return crypto.randomUUID();
 }
 
+function isActive(player) {
+  return player && player.active !== false;
+}
+
 async function validateOwnerSession(request, env) {
   const token = request.headers.get('X-Coach-Token');
   if (!token) return null;
@@ -194,7 +198,7 @@ async function handlePlayerLookup(request, env, cors) {
 
   const validPlayers = players
     .filter(Boolean)
-    .map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName }));
+    .map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName, active: p.active !== false }));
 
   if (validPlayers.length === 0) return json({ found: false }, 404, cors);
 
@@ -216,8 +220,21 @@ async function handlePlayerCreate(request, env, cors) {
 
   const normalized = normalizeEmail(email);
   const existing = await env.CTT_KV.get(`email-index:${normalized}`, { type: 'json' });
+
   if (existing && existing.length > 0) {
-    return err('A profile already exists for this email. Please use the lookup form.', 409, cors);
+    const existingPlayers = await Promise.all(
+      existing.map(id => env.CTT_KV.get(`player:${id}`, { type: 'json' }))
+    );
+    const hasActive = existingPlayers.some(p => isActive(p));
+    if (hasActive) {
+      return err('A profile already exists for this email. Please use the lookup form.', 409, cors);
+    } else {
+      return json(
+        { error: 'You already have an account that\'s marked as Inactive. Contact your coach to resume.', code: 'INACTIVE' },
+        409,
+        cors
+      );
+    }
   }
 
   const playerId = generateId();
@@ -232,6 +249,7 @@ async function handlePlayerCreate(request, env, cors) {
     ntrpLevel: ntrpLevel || '',
     improvementGoals: improvementGoals || '',
     parentEmail: parentEmail ? normalizeEmail(parentEmail) : '',
+    active: true,
     createdAt: now,
     updatedAt: now,
   };
@@ -270,6 +288,9 @@ async function handlePlayerGet(request, env, playerId, cors) {
   const player = await env.CTT_KV.get(`player:${playerId}`, { type: 'json' });
   if (!player) return err('Player not found', 404, cors);
 
+  // Backfill active field for old records
+  if (player.active === undefined) player.active = true;
+
   return json(player, 200, cors);
 }
 
@@ -297,6 +318,7 @@ async function handlePlayerUpdate(request, env, playerId, cors) {
     ntrpLevel: body.ntrpLevel !== undefined ? body.ntrpLevel : existing.ntrpLevel,
     improvementGoals: body.improvementGoals !== undefined ? body.improvementGoals : existing.improvementGoals,
     parentEmail: body.parentEmail !== undefined ? normalizeEmail(body.parentEmail) : existing.parentEmail,
+    active: body.active !== undefined ? Boolean(body.active) : (existing.active !== false),
     updatedAt: new Date().toISOString(),
   };
 
@@ -324,11 +346,65 @@ async function handlePlayersAll(request, env, cors) {
   const session = await validateOwnerSession(request, env);
   if (!session) return err('Authentication required', 401, cors);
 
+  const url = new URL(request.url);
+  const includeInactive = url.searchParams.get('include_inactive') === 'true';
+
   const allIds = (await env.CTT_KV.get('players:all', { type: 'json' })) || [];
   const players = await Promise.all(allIds.map(id => env.CTT_KV.get(`player:${id}`, { type: 'json' })));
-  const valid = players.filter(Boolean).sort((a, b) => a.lastName.localeCompare(b.lastName));
+
+  const valid = players
+    .filter(Boolean)
+    .map(p => ({ ...p, active: p.active !== false }))
+    .filter(p => includeInactive || p.active)
+    .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
   return json({ players: valid }, 200, cors);
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+async function handleAnalytics(request, env, cors) {
+  const session = await validateOwnerSession(request, env);
+  if (!session) return err('Authentication required', 401, cors);
+
+  const allIds = (await env.CTT_KV.get('players:all', { type: 'json' })) || [];
+  const players = await Promise.all(allIds.map(id => env.CTT_KV.get(`player:${id}`, { type: 'json' })));
+  const validPlayers = players.filter(Boolean).map(p => ({ ...p, active: p.active !== false }));
+
+  const activePlayers = validPlayers.filter(p => p.active);
+  const inactiveCount = validPlayers.length - activePlayers.length;
+
+  const ntrpDistribution = {};
+  for (const p of activePlayers) {
+    const level = p.ntrpLevel || 'Not set';
+    ntrpDistribution[level] = (ntrpDistribution[level] || 0) + 1;
+  }
+
+  // Count unique sessions, deduplicating group sessions by groupSessionId
+  const sessionLists = await Promise.all(allIds.map(id => env.CTT_KV.get(`sessions:list:${id}`, { type: 'json' })));
+  const allSessionIds = sessionLists.flatMap(list => list || []);
+
+  const allSessions = await Promise.all(allSessionIds.map(id => env.CTT_KV.get(`session:${id}`, { type: 'json' })));
+
+  const seenGroupIds = new Set();
+  let totalUniqueSessions = 0;
+  for (const s of allSessions.filter(Boolean)) {
+    if (s.isGroup && s.groupSessionId) {
+      if (!seenGroupIds.has(s.groupSessionId)) {
+        seenGroupIds.add(s.groupSessionId);
+        totalUniqueSessions++;
+      }
+    } else {
+      totalUniqueSessions++;
+    }
+  }
+
+  return json({
+    totalActivePlayers: activePlayers.length,
+    totalInactivePlayers: inactiveCount,
+    ntrpDistribution,
+    totalUniqueSessions,
+  }, 200, cors);
 }
 
 // ── LTTDP ─────────────────────────────────────────────────────────────────────
@@ -408,13 +484,62 @@ async function handleSessionLatest(request, env, playerId, cors) {
 }
 
 async function handleSessionCreate(request, env, cors) {
-  const session = await validateOwnerSession(request, env);
-  if (!session) return err('Authentication required', 401, cors);
+  const ownerSession = await validateOwnerSession(request, env);
+  if (!ownerSession) return err('Authentication required', 401, cors);
 
   let body;
   try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
 
-  const { playerId, date, durationMinutes, topicsCovered, notes } = body;
+  const { date, durationMinutes, topicsCovered } = body;
+
+  // Group session
+  if (body.isGroup) {
+    const { playerIds, sharedNotes, individualNotes = {} } = body;
+
+    if (!Array.isArray(playerIds) || playerIds.length < 2 || !date || !durationMinutes || !topicsCovered || !sharedNotes) {
+      return err('All fields are required for group sessions (minimum 2 players)', 400, cors);
+    }
+
+    const playerChecks = await Promise.all(playerIds.map(id => env.CTT_KV.get(`player:${id}`, { type: 'json' })));
+    if (playerChecks.some(p => !p)) return err('One or more players not found', 404, cors);
+
+    const groupSessionId = generateId();
+    const now = new Date().toISOString();
+    const groupSize = playerIds.length;
+
+    // Pre-generate all session IDs so we can cross-link them
+    const entries = playerIds.map(pid => ({ playerId: pid, sessionId: generateId() }));
+    const allSessionIds = entries.map(e => e.sessionId);
+
+    for (const { playerId: pid, sessionId } of entries) {
+      const newSession = {
+        id: sessionId,
+        playerId: pid,
+        date,
+        durationMinutes: Number(durationMinutes),
+        topicsCovered,
+        isGroup: true,
+        groupSessionId,
+        groupSize,
+        groupMemberSessionIds: allSessionIds,
+        sharedNotes,
+        individualNotes: individualNotes[pid] || '',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await env.CTT_KV.put(`session:${sessionId}`, JSON.stringify(newSession));
+
+      const list = (await env.CTT_KV.get(`sessions:list:${pid}`, { type: 'json' })) || [];
+      list.unshift(sessionId);
+      await env.CTT_KV.put(`sessions:list:${pid}`, JSON.stringify(list));
+    }
+
+    return json({ groupSessionId, sessions: entries }, 201, cors);
+  }
+
+  // Individual session
+  const { playerId, notes } = body;
   if (!playerId || !date || !durationMinutes || !topicsCovered || !notes) {
     return err('All fields are required', 400, cors);
   }
@@ -457,14 +582,30 @@ async function handleSessionUpdate(request, env, sessionId, cors) {
 
   const updated = {
     ...existing,
-    date: body.date || existing.date,
+    date: body.date !== undefined ? body.date : existing.date,
     durationMinutes: body.durationMinutes !== undefined ? Number(body.durationMinutes) : existing.durationMinutes,
-    topicsCovered: body.topicsCovered || existing.topicsCovered,
-    notes: body.notes || existing.notes,
+    topicsCovered: body.topicsCovered !== undefined ? body.topicsCovered : existing.topicsCovered,
+    notes: body.notes !== undefined ? body.notes : existing.notes,
+    sharedNotes: body.sharedNotes !== undefined ? body.sharedNotes : existing.sharedNotes,
+    individualNotes: body.individualNotes !== undefined ? body.individualNotes : existing.individualNotes,
     updatedAt: new Date().toISOString(),
   };
 
   await env.CTT_KV.put(`session:${sessionId}`, JSON.stringify(updated));
+
+  // Propagate sharedNotes edits to all other group members
+  if (existing.isGroup && body.sharedNotes !== undefined) {
+    const memberIds = (existing.groupMemberSessionIds || []).filter(id => id !== sessionId);
+    await Promise.all(memberIds.map(async (memberId) => {
+      const memberSession = await env.CTT_KV.get(`session:${memberId}`, { type: 'json' });
+      if (memberSession) {
+        memberSession.sharedNotes = body.sharedNotes;
+        memberSession.updatedAt = updated.updatedAt;
+        await env.CTT_KV.put(`session:${memberId}`, JSON.stringify(memberSession));
+      }
+    }));
+  }
+
   return json(updated, 200, cors);
 }
 
@@ -508,6 +649,7 @@ export default {
       if (method === 'POST' && pathname === '/api/player/lookup') return handlePlayerLookup(request, env, cors);
       if (method === 'POST' && pathname === '/api/player') return handlePlayerCreate(request, env, cors);
       if (method === 'GET' && pathname === '/api/players') return handlePlayersAll(request, env, cors);
+      if (method === 'GET' && pathname === '/api/analytics') return handleAnalytics(request, env, cors);
 
       const playerMatch = pathname.match(/^\/api\/player\/([^/]+)$/);
       if (playerMatch) {

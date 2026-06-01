@@ -62,7 +62,11 @@
       const data = await window.CTTAPI.parseJson(res);
 
       if (res.status === 409) {
-        showError('A profile already exists for this email. Go back and use the lookup form.');
+        if (data?.code === 'INACTIVE') {
+          showError(data.error);
+        } else {
+          showError('A profile already exists for this email. Go back and use the lookup form.');
+        }
         return;
       }
 

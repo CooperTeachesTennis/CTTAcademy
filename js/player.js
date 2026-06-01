@@ -102,10 +102,17 @@
 
   function renderProfileView(player) {
     const profileCard = document.getElementById('profile-card');
+    const inactive = player.active === false;
+
     profileCard.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
         <div class="card__title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Player Info</div>
-        <button class="btn btn--secondary btn--sm" id="edit-profile-btn" type="button">Edit</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn--${inactive ? 'secondary' : 'ghost'} btn--sm" id="toggle-active-btn" type="button">
+            ${inactive ? 'Reactivate' : 'Mark Inactive'}
+          </button>
+          <button class="btn btn--secondary btn--sm" id="edit-profile-btn" type="button">Edit</button>
+        </div>
       </div>
       <div id="profile-msg" class="alert" role="alert"></div>
       <div class="info-grid">
@@ -143,6 +150,25 @@
 
     document.getElementById('edit-profile-btn').addEventListener('click', () => {
       renderProfileEdit(player);
+    });
+
+    document.getElementById('toggle-active-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('toggle-active-btn');
+      const msgEl = document.getElementById('profile-msg');
+      const nowInactive = currentPlayer.active === false;
+      const label = nowInactive ? 'Reactivating…' : 'Marking inactive…';
+      btn.disabled = true; btn.textContent = label;
+
+      try {
+        const res = await window.CTTAPI.apiPut(`/api/player/${playerId}`, { active: nowInactive });
+        const data = await window.CTTAPI.parseJson(res);
+        if (!res.ok) { showMsg(msgEl, data?.error || 'Update failed.'); return; }
+        currentPlayer = data;
+        renderProfileView(currentPlayer);
+        // Refresh the page heading badge
+        renderHeading(currentPlayer);
+      } catch { showMsg(document.getElementById('profile-msg'), 'Something went wrong.'); }
+      finally { if (btn) { btn.disabled = false; } }
     });
   }
 
@@ -190,9 +216,53 @@
         if (!res.ok) { showMsg(msgEl, data?.error || 'Save failed.'); return; }
         currentPlayer = data;
         renderProfileView(currentPlayer);
+        renderHeading(currentPlayer);
       } catch { showMsg(document.getElementById('profile-msg'), 'Something went wrong.'); }
       finally { btn.disabled = false; btn.textContent = 'Save'; }
     });
+  }
+
+  function renderHeading(player) {
+    const headingEl = document.getElementById('player-heading');
+    if (!headingEl) return;
+    const inactive = player.active === false;
+    headingEl.innerHTML = `
+      ${escHtml(player.firstName)} ${escHtml(player.lastName)}
+      ${inactive ? '<span class="badge--inactive">Inactive</span>' : ''}
+    `;
+  }
+
+  function renderSessionEntry(s) {
+    const entry = document.createElement('div');
+    entry.className = 'session-entry';
+
+    const isGroup = s.isGroup;
+    const groupBadge = isGroup
+      ? `<span class="session-group-badge">Group · ${s.groupSize} players</span>`
+      : '';
+
+    const notesHtml = isGroup
+      ? `<div class="session-entry__notes">${escHtml(s.sharedNotes)}</div>
+         ${s.individualNotes ? `
+           <div class="session-entry__individual-notes">
+             <div class="session-entry__individual-notes-label">Personal notes</div>
+             <div class="session-entry__individual-notes-text">${escHtml(s.individualNotes)}</div>
+           </div>` : ''}`
+      : `<div class="session-entry__notes">${escHtml(s.notes)}</div>`;
+
+    entry.innerHTML = `
+      <div class="session-entry__header">
+        <span class="session-entry__date">${formatSessionDate(s.date)}</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          ${groupBadge}
+          <span class="session-entry__duration">${s.durationMinutes} min</span>
+          <a href="session.html?sessionId=${escHtml(s.id)}&playerId=${escHtml(playerId)}" class="btn btn--ghost" style="padding:2px 8px;font-size:0.75rem;">Edit</a>
+        </div>
+      </div>
+      <div class="session-entry__topics">${escHtml(s.topicsCovered)}</div>
+      ${notesHtml}
+    `;
+    return entry;
   }
 
   // ── Main render ──────────────────────────────────────────────────────────
@@ -214,10 +284,14 @@
 
     currentPlayer = player;
     document.title = `${player.firstName} ${player.lastName} — Cooper Teaches Tennis`;
+    const inactive = player.active === false;
 
     mainContent.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-        <h1 style="font-size:1.25rem;font-weight:700;color:var(--color-primary-dark);">${escHtml(player.firstName)} ${escHtml(player.lastName)}</h1>
+        <h1 id="player-heading" style="font-size:1.25rem;font-weight:700;color:var(--color-primary-dark);">
+          ${escHtml(player.firstName)} ${escHtml(player.lastName)}
+          ${inactive ? '<span class="badge--inactive">Inactive</span>' : ''}
+        </h1>
         <a href="session.html?playerId=${escHtml(playerId)}" class="btn btn--primary btn--sm">+ Log session</a>
       </div>
 
@@ -248,10 +322,9 @@
       </div>
     `;
 
-    // Render profile view (static by default)
     renderProfileView(player);
 
-    // LTTDP view mode
+    // LTTDP
     function renderLttdpView() {
       const view = document.getElementById('lttdp-view');
       const sections = [
@@ -297,7 +370,6 @@
         });
         const data = await window.CTTAPI.parseJson(res);
         if (!res.ok) { showMsg(msgEl, data?.error || 'Save failed.'); return; }
-        // Update local lttdp reference and return to view
         lttdp.goals = data.goals;
         lttdp.technicalSkills = data.technicalSkills;
         lttdp.patternsAndPlays = data.patternsAndPlays;
@@ -320,20 +392,7 @@
       const list = document.createElement('div');
       list.className = 'session-list';
       for (const s of sessions) {
-        const entry = document.createElement('div');
-        entry.className = 'session-entry';
-        entry.innerHTML = `
-          <div class="session-entry__header">
-            <span class="session-entry__date">${formatSessionDate(s.date)}</span>
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span class="session-entry__duration">${s.durationMinutes} min</span>
-              <a href="session.html?sessionId=${escHtml(s.id)}&playerId=${escHtml(playerId)}" class="btn btn--ghost" style="padding:2px 8px;font-size:0.75rem;">Edit</a>
-            </div>
-          </div>
-          <div class="session-entry__topics">${escHtml(s.topicsCovered)}</div>
-          <div class="session-entry__notes">${escHtml(s.notes)}</div>
-        `;
-        list.appendChild(entry);
+        list.appendChild(renderSessionEntry(s));
       }
       sessionsBody.appendChild(list);
     }
