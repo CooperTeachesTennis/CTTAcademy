@@ -1,206 +1,280 @@
-# CLAUDE.md — CTT Academy
-**CooperTeachesTennis | cttacademy**
-*Last updated: May 2026*
+# CLAUDE.md — Cooper Teaches Tennis
+**CooperTeachesTennis/CTTAcademy**
+*Last updated: June 2026*
 
 ---
 
 ## Project Overview
 
-CTT Academy is a private coaching management platform for Cooper Anderson
-(CooperTeachesTennis). Phase 1 is a secure, owner-only web app for managing
-student profiles, session notes, and coaching history. Phase 2 will open a
-public-facing interface for client self-registration and eventually hosted
-payments via a third-party processor.
+Cooper Teaches Tennis is a coaching management platform for Cooper Anderson.
+Built and maintained by Mitch Anderson (Cooper's brother).
 
-**Repository:** github.com/[your-handle]/cttacademy *(update when customized)*
-**Owner:** Cooper Anderson
-**Status:** Phase 1 — private, owner-only access
+**Primary purpose:** Cooper logs session notes after each lesson. Players access
+their notes, track their Long-Term Tennis Development Plan (LTTDP), and review
+their progress. Cooper reviews the previous session before logging new notes.
+
+**Live site:** https://ctt-academy.pages.dev
+**Worker:** https://ctt-worker.andermd535.workers.dev
+**Repo:** https://github.com/CooperTeachesTennis/CTTAcademy
+**Cloudflare account:** Mitch Anderson (andermd535@gmail.com)
+
+**Explicitly out of scope:** scheduling, payments, file/video uploads.
 
 ---
 
 ## Security — Top Priority
 
-Security is the single most important concern in this codebase. Every
-architectural decision, every feature addition, and every dependency choice
-must be evaluated through a security-first lens. When in doubt, do less and
-ask.
+Security is the most important concern in this codebase. Every architectural
+decision must be evaluated through a security-first lens. When in doubt, do
+less and ask.
 
-### Non-Negotiable Security Rules
+### Non-Negotiable Rules
 
-1. **No secrets in the repo — ever.** API keys, tokens, credentials, and
-   Cloudflare KV binding names never appear in source files. Use environment
-   variables exclusively. `.env` is in `.gitignore` and never committed.
+1. **No secrets in the repo — ever.** All credentials live in Cloudflare Worker
+   secrets set via `wrangler secret put`. Never in source files. `.env` is in
+   `.gitignore`.
 
-2. **GitHub OAuth is the only authentication path.** No username/password
-   login. No magic links. No workarounds. The app checks GitHub identity on
-   every protected route. Owner UID is hardcoded server-side — not in the
-   client.
+2. **Coach auth is GitHub OAuth only.** The Worker validates the coach's numeric
+   GitHub user ID server-side on every protected request. No other auth path
+   exists for coach access.
 
-3. **All API calls route through a Cloudflare Worker.** The browser never
-   calls external APIs directly. The Worker validates the authenticated
-   session before touching KV storage or any external service.
+3. **All API calls route through the Cloudflare Worker.** The browser never
+   calls external APIs directly. The Worker validates auth before any KV access.
 
-4. **KV data is owner-only.** No client-facing reads or writes to KV in
-   Phase 1. All KV access is gated behind Worker-side auth validation.
+4. **No sensitive player data.** Profiles contain coaching notes, session
+   history, and LTTDP data only. No financial information, no payment data,
+   no SSNs or government IDs — ever.
 
-5. **No sensitive client data in Phase 1.** Student profiles contain
-   coaching notes, session history, and assessment data only. No financial
-   information, no payment data, no SSNs or government IDs — ever.
+5. **HTTPS only.** No HTTP fallback.
 
-6. **HTTPS only.** No HTTP fallback. All Workers routes enforce TLS.
+6. **CSP headers on every Worker response.** No inline scripts. No `eval()`.
 
-7. **Dependency hygiene.** Minimize npm packages. Every new dependency
-   requires justification. Run `npm audit` before every deploy.
+7. **No CDN-loaded libraries.** All JS is loaded from `'self'` only.
 
-8. **No commented-out credentials.** Ever. If a past key appears in git
-   history, treat it as compromised and rotate immediately.
+8. **Generic error messages.** Never expose stack traces or KV key names in
+   responses.
 
-9. **Content Security Policy headers.** Set by the Cloudflare Worker on
-   every response. No inline scripts. No `eval()`.
+9. **Principle of least privilege.** GitHub OAuth app: read-only profile scope
+   only.
 
-10. **Principle of least privilege.** Cloudflare API tokens scoped to this
-    project only. GitHub OAuth app permissions: read-only, profile only.
+### Intentional Security Tradeoffs (Documented)
+
+- **Email-only player auth:** Anyone with a player's email can view their
+  profile. Accepted tradeoff — data is coaching notes only, not sensitive.
+- **Hidden coach URL:** `/coach` page is not linked anywhere. Security through
+  obscurity supplements OAuth — finding the URL still requires Cooper's GitHub
+  account to pass auth.
 
 ---
 
 ## Architecture
 
-### Phase 1 — Owner-Only Private App
-
 ```
-Browser (GitHub OAuth login)
-    ↓
-Static HTML/CSS/JS (GitHub Pages)
-    ↓ all data requests
-Cloudflare Worker (auth validation + business logic)
-    ↓
-Cloudflare KV (student profiles + session notes)
+Browser
+  ↓ static files served from
+Cloudflare Pages (ctt-academy.pages.dev)
+  ↓ all /api/* requests go to
+Cloudflare Worker (ctt-worker.andermd535.workers.dev)
+  ↓
+Cloudflare KV (CTT_KV) — all data storage
 ```
 
-### Phase 2 — Public-Facing (future)
-- Public registration flow added to static frontend
-- Worker adds new KV namespaces for client-owned data
-- Third-party payment processor integrated via Worker (Stripe or equivalent)
-- Auth expands to support client-facing login separate from owner access
+### Two User Types
+
+**Coach (Cooper):**
+- Accesses via private bookmark: `https://ctt-academy.pages.dev/coach`
+- `coach.html` redirects to GitHub OAuth on the Worker
+- Worker validates numeric GitHub user ID against `OWNER_GITHUB_ID` secret
+- Session cookie: 32-byte random token, 7-day TTL, HttpOnly/Secure/SameSite=None
+- Full read/write access to all data
+
+**Players/Parents:**
+- Enter email on landing page → Worker looks up `email-index:{email}` in KV
+- One match → straight to profile; multiple matches → selector screen (parents)
+- Player ID stored in sessionStorage (clears on tab close)
+- Read-only access to their own profile, LTTDP, and sessions only
 
 ---
 
 ## Tech Stack
 
-| Layer | Tool | Reason |
-|---|---|---|
-| Frontend | Static HTML + CSS + Vanilla JS | Lightweight, easy to update, no build step |
-| Auth | GitHub OAuth (via Cloudflare Worker) | Simple, secure, zero password management |
-| API / Secret handling | Cloudflare Worker | Keeps all keys server-side |
-| Data | Cloudflare KV | Fast, serverless, pairs natively with Workers |
-| Hosting | GitHub Pages (Phase 1) | Free, simple, HTTPS included |
-| Domain | github.io URL (Phase 1) → custom domain (Phase 2) | Update this file when domain is set |
+| Layer | Tool |
+|---|---|
+| Frontend | Static HTML + CSS + Vanilla JS (no framework, no build step) |
+| Hosting | Cloudflare Pages |
+| Backend / Auth | Cloudflare Worker |
+| Data | Cloudflare KV |
+| Coach Auth | GitHub OAuth |
 
 **Do not introduce React, Next.js, or any frontend framework without discussion.**
-The goal is code Cooper can read and update. Keep it simple.
 
 ---
 
 ## File Structure
 
 ```
-cttacademy/
-├── index.html           # Login / landing page
-├── dashboard.html       # Owner dashboard (protected)
-├── student.html         # Individual student profile view (protected)
-├── session.html         # Session notes entry form (protected)
+CTTAcademy/
+├── index.html          # Landing page — email login + "View as Guest"
+├── home.html           # Public home — placeholder for future reels/blog
+├── register.html       # Player self-registration
+├── profile.html        # Player read-only view (profile + LTTDP + sessions)
+├── select.html         # Multi-player selector (parents with multiple kids)
+├── coach.html          # Hidden redirect → GitHub OAuth (Cooper's bookmark)
+├── dashboard.html      # Coach player list (protected)
+├── player.html         # Coach player editor + LTTDP editor (protected)
+├── session.html        # Session log form + last-session reminder (protected)
+├── about.html          # About Me tab (fetches from Worker)
+├── store.html          # Store tab (placeholder)
+├── education.html      # Education tab (placeholder)
+├── linktree.html       # Link Tree tab (Instagram, TikTok, LinkedIn)
+├── guest.html          # Legacy — superseded by home.html
 ├── css/
-│   └── style.css
+│   └── style.css       # Single stylesheet for all pages
 ├── js/
-│   ├── auth.js          # GitHub OAuth token handling (client-side only)
-│   └── app.js           # Dashboard and UI logic
+│   ├── auth.js         # Session management, auth guards, redirect logic
+│   ├── api.js          # Fetch wrapper — X-Player-Id injection, 401 handling
+│   ├── index-page.js   # Landing page — email lookup, state switching
+│   ├── register.js     # Registration form
+│   ├── profile.js      # Player profile view
+│   ├── select.js       # Parent profile selector
+│   ├── home.js         # Home page (checks if player already signed in)
+│   ├── about.js        # About Me (fetches from /api/guest/info)
+│   ├── dashboard.js    # Coach dashboard
+│   ├── player.js       # Coach player editor
+│   └── session.js      # Session log (create + edit mode)
 ├── worker/
-│   └── index.js         # Cloudflare Worker — all server-side logic lives here
+│   └── index.js        # Cloudflare Worker — all backend logic
+├── wrangler.toml       # Worker config + KV binding (no secrets)
 ├── .gitignore
-├── CLAUDE.md            # This file
-└── README.md
+├── README.md           # Deployment runbook
+├── CLAUDE.md           # This file
+└── lastsessionssummary.txt  # Detailed session log from June 2026 build
 ```
+
+---
+
+## KV Data Schema
+
+```
+player:{playerId}             Full player object
+email-index:{email}           Array of playerIds linked to that email
+lttdp:{playerId}              LTTDP object (4 sections)
+sessions:list:{playerId}      Ordered array of session IDs (newest first)
+session:{sessionId}           Individual session object
+players:all                   Array of all player IDs (for dashboard)
+owner:session:{token}         Coach session (32-byte random token, 7-day TTL)
+oauth:state:{state}           CSRF protection for OAuth (10-min TTL)
+```
+
+Player and session IDs are UUID v4. Email keys are always lowercased + trimmed.
+
+---
+
+## Worker Routes
+
+All responses include CSP, X-Content-Type-Options, X-Frame-Options, and
+Referrer-Policy headers. CORS is locked to `ctt-academy.pages.dev` and
+`cooperteachestennis.github.io` only.
+
+| Route | Auth | Description |
+|---|---|---|
+| GET /api/auth/github | none | Initiates GitHub OAuth |
+| GET /api/auth/callback | none | Completes OAuth, sets session cookie |
+| GET /api/auth/check | cookie | Returns `{authenticated: bool}` |
+| POST /api/auth/logout | cookie | Clears session |
+| POST /api/player/lookup | none | Email → player summaries |
+| POST /api/player | none | Create player (registration) |
+| GET /api/player/:id | cookie or X-Player-Id | Get player |
+| PUT /api/player/:id | cookie | Update player (coach only) |
+| GET /api/players | cookie | All players (coach dashboard) |
+| GET /api/lttdp/:id | cookie or X-Player-Id | Get LTTDP |
+| PUT /api/lttdp/:id | cookie | Update LTTDP (coach only) |
+| GET /api/sessions/:id | cookie or X-Player-Id | Get session list |
+| GET /api/sessions/:id/latest | cookie | Most recent session (reminder panel) |
+| POST /api/session | cookie | Create session (coach only) |
+| PUT /api/session/:id | cookie | Edit session (coach only) |
+| GET /api/guest/info | none | Static Cooper bio/info |
+
+---
+
+## Worker Secrets
+
+Set via `wrangler secret put` — never appear in any file:
+
+| Secret | Description |
+|---|---|
+| `GITHUB_CLIENT_ID` | OAuth app client ID |
+| `GITHUB_CLIENT_SECRET` | OAuth app client secret |
+| `OWNER_GITHUB_ID` | Numeric GitHub user ID of the coach (currently Mitch: 283034047) |
+
+KV binding name: `CTT_KV`
+KV Namespace ID: `945aa45b37d94e22a71a5271a004b50c`
+KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
 
 ---
 
 ## Feature Scope
 
-### Phase 1 — Build Now
+### Built and Live
 
-**Authentication**
-- GitHub OAuth login flow
-- Owner-only access enforced server-side (Worker checks GitHub user ID)
-- Session tokens expire; no persistent login without re-auth
+- Player email lookup and self-registration
+- Parent/multi-player support (one email → multiple player profiles)
+- Player profile view (read-only): contact info, NTRP, improvement goals
+- LTTDP: Goals / Technical Skills / Patterns & Plays / On-Off Season
+- Session notes: Cooper logs, players read
+- Last-session reminder on session log form
+- Coach dashboard: player list with search, add/edit players
+- Coach player editor: profile edit + LTTDP editor + session history
+- Public nav: Home, Player Profile, Store, Education, Link Tree, About Me
+- Placeholder pages: Store, Education (coming soon)
+- Link Tree: Instagram, TikTok, LinkedIn
+- About Me: fetched from Worker
 
-**Student Profiles**
-- Create and edit student profiles
-- Fields: Name, contact email, NTRP rating, play style, goals, start date
-- Assessment: initial skill assessment form mapped to CTT fundamentals
-- Each profile has a unique ID stored in KV
+### Not Built — Do Not Add Without Discussion
 
-**Session Tracker**
-- Log each coaching session: date, student, duration, topics covered
-- "Last session" reminder: dashboard surfaces the most recent session
-  notes before each new entry — Cooper sees what was covered before
-  logging new notes
-- Session history: chronological list per student
-
-**Dashboard**
-- List of all active students
-- Quick-access: upcoming sessions, recent notes
-- Search/filter by student name
-
-### Phase 2 — Do Not Build Yet
-
-- Public registration portal
-- Client-facing login
-- Payment integration (third-party processor — TBD)
+- Scheduling
+- Payments
+- File or video uploads
 - Email notifications
-- File/video uploads
-
-**Do not stub, scaffold, or placeholder Phase 2 features in Phase 1 code.
-Build only what is listed above.**
+- Blog/newsletter system
+- Merch store backend
 
 ---
 
-## Cloudflare Worker Rules
+## Deploying Changes
 
-- The Worker is the only place secrets live in production
-- Validate GitHub session token on every request before any KV operation
-- Return generic error messages to the client — never expose stack traces
-  or internal KV key names
-- KV keys follow this pattern: `student:{id}`, `session:{studentId}:{date}`
-- All Worker routes are prefixed `/api/` — the static frontend never calls
-  anything else
-- Worker environment variables (set in Cloudflare dashboard, never in code):
-  - `GITHUB_CLIENT_ID`
-  - `GITHUB_CLIENT_SECRET`
-  - `OWNER_GITHUB_ID` *(numeric GitHub user ID — not username; update before first deploy)*
-  - KV namespace binding: `CTT_KV`
+```bash
+# Backend changes (worker/index.js):
+wrangler deploy
+
+# Frontend changes (any HTML/CSS/JS):
+wrangler pages deploy /Users/mitchanderson/CTTA --project-name ctt-academy --commit-dirty=true
+
+# Keep GitHub repo in sync:
+git add -A && git commit -m "description" && git push origin main
+```
+
+Worker and Pages deploy independently. Always push to GitHub to keep the repo
+in sync with what's live.
 
 ---
 
 ## Working with Claude
 
-### How Cooper works
-- Not an experienced coder. Plain language explanations required alongside
-  every file written or changed.
-- Prefers finished drafts to react to over open-ended questions.
-- If a decision is genuinely ambiguous, ask 1 question max before proceeding.
+### Context
+- Mitch Anderson builds and maintains this. Cooper is the end user / domain expert.
+- Cooper is not a coder — plain language explanations required for anything
+  he needs to understand or operate.
+- Mitch prefers to set a clear plan and let Claude work autonomously.
 - Security concerns always pause the work — flag before building.
 
-### Claude's job on this project
-- Explain what code does in plain English alongside every file it writes
-- Flag any security implications of a proposed change before implementing
-- Never introduce a new dependency without explaining what it does and why
-- Prefer the simplest solution that works over the clever one
-- If asked to build a Phase 2 feature, confirm that's the intent first
-
-### What Claude should never do
-- Commit or suggest committing `.env` files or secrets
-- Add packages not discussed without flagging them first
-- Build beyond the Phase 1 feature scope without explicit instruction
-- Assume a feature is needed — ask if scope is unclear
+### Rules
+- Never commit `.env` files or secrets
+- Never add packages without explaining what they do and why
+- Never build beyond the listed feature scope without explicit instruction
+- Prefer the simplest solution that works
+- No inline scripts in HTML (CSP requirement)
+- All JS files are external, loaded via `<script src="...">` tags only
 
 ---
 
@@ -208,22 +282,37 @@ Build only what is listed above.**
 
 Before any push to `main`:
 - [ ] No secrets or API keys in any file
-- [ ] `.env` is in `.gitignore`
-- [ ] `npm audit` run — no high or critical vulnerabilities
-- [ ] Worker tested locally with `wrangler dev` before deploying
-- [ ] Auth flow tested: login, access protected route, logout
-- [ ] No `console.log` statements left in production code
+- [ ] No `console.log` statements in production code
+- [ ] No inline `<script>` blocks in any HTML file
+- [ ] Worker deployed: `wrangler deploy`
+- [ ] Pages deployed: `wrangler pages deploy ...`
+- [ ] GitHub pushed: `git push origin main`
 
 ---
 
-## Domain & URL
+## Live URLs & Infrastructure
 
-**Current:** GitHub Pages URL *(update when repo is created)*
-`https://[your-handle].github.io/cttacademy`
+| Item | Value |
+|---|---|
+| Live site | https://ctt-academy.pages.dev |
+| Worker | https://ctt-worker.andermd535.workers.dev |
+| Coach login | https://ctt-academy.pages.dev/coach (bookmark only — not linked) |
+| GitHub repo | https://github.com/CooperTeachesTennis/CTTAcademy |
+| Cloudflare account | andermd535@gmail.com (Mitch) |
 
-**Future:** Custom subdomain — `academy.cooperteachestennis.com` (Phase 2)
+**Future:** Custom domain (`cooperteachestennis.com`) via Cloudflare when ready.
 
-*Update this section when the domain changes.*
+---
+
+## Pending / Next Steps
+
+1. Confirm Cooper's real social media URLs → update `linktree.html`
+2. Update About Me content in `worker/index.js` → `handleGuestInfo()` with
+   Cooper's real bio
+3. Custom domain setup through Cloudflare dashboard
+4. Transfer `OWNER_GITHUB_ID` to Cooper's GitHub account when he has one
+5. GitHub Pages on CooperTeachesTennis/CTTAcademy requires Cooper to enable
+   in repo Settings (org admin access — Mitch can't do it)
 
 ---
 
@@ -232,3 +321,4 @@ Before any push to `main`:
 | Date | Change |
 |---|---|
 | May 2026 | Initial CLAUDE.md created |
+| June 2026 | Full Phase 1 built and deployed — see lastsessionssummary.txt |

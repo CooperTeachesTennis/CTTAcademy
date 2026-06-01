@@ -1,0 +1,215 @@
+SESSION SUMMARY — June 1, 2026
+Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
+================================================================================
+
+WHAT WE BUILT
+-------------
+A full coaching management platform built from scratch in a single session.
+Live at: https://ctt-academy.pages.dev
+
+The site has two distinct sides:
+  - A public-facing site (Home, Store, Education, Link Tree, About Me) visible
+    to anyone, plus a Player Profile tab for registered players
+  - A private coach dashboard only Cooper can access
+
+All data and security logic runs through a Cloudflare Worker. The browser never
+touches data directly — everything goes through the Worker, which validates auth
+before doing anything.
+
+
+HOW COOPER LOGS IN (READ THIS FIRST)
+-------------------------------------
+Cooper has a private bookmark: https://ctt-academy.pages.dev/coach
+
+This URL is not linked or advertised anywhere on the site. Visiting it redirects
+to GitHub OAuth, which verifies Cooper's identity. Once logged in, the session
+lasts 7 days — so on most days the dashboard just opens directly from the
+bookmark with no login step at all.
+
+Security: even if someone finds the /coach URL, they can't get in unless they're
+logged into Cooper's specific GitHub account. The Worker checks a numeric user ID
+server-side — no other GitHub account can pass that check.
+
+When the 7-day session expires: open the bookmark, tap "Authorize" on GitHub
+(usually one tap, no password needed if already logged into GitHub on that
+device), and the dashboard opens.
+
+Mitch's GitHub account (MitchAndrsn, ID: 283034047) is currently set as the
+owner for dev/testing. To transfer full coach control to Cooper later:
+  1. Cooper creates a GitHub account
+  2. Find his numeric user ID at: https://api.github.com/users/HIS_USERNAME
+  3. Run: wrangler secret put OWNER_GITHUB_ID
+  4. Enter Cooper's numeric ID when prompted
+  Done — Cooper now has coach access, Mitch no longer does.
+
+
+PLAYER FLOW
+-----------
+1. Player visits ctt-academy.pages.dev
+2. Enters their email address → clicks "Access My Profile"
+3. If found: goes straight to their profile page (read-only)
+4. If multiple profiles found (parent with kids): sees a selector screen to pick
+   which player to view
+5. If not found: offered to create a profile
+6. Registration requires: first name, last name, email, phone (all required —
+   hard stop if any are missing). Optional: NTRP level, improvement goals,
+   parent/guardian email
+7. Parent email: if provided, that parent email also gets access to this player's
+   profile. A parent with two registered kids sees both profiles on login.
+8. Session data stored in browser sessionStorage — clears when tab closes
+   (intentional — appropriate for shared devices)
+
+
+WHAT PLAYERS SEE ON THEIR PROFILE
+----------------------------------
+- Their contact info and NTRP level
+- Long-Term Tennis Development Plan (LTTDP) — four sections:
+    Goals / Technical Skills / Patterns & Plays / On-Off Season
+  Cooper fills these in from the dashboard. Players see them read-only.
+- Full session history — every session Cooper has logged, newest first
+  Each session shows: date, duration, topics covered, notes
+
+
+WHAT COOPER SEES (COACH DASHBOARD)
+------------------------------------
+- List of all players, sortable, with name search
+- "Add Player" button to register a player manually (same form as self-reg)
+- Click any player → full edit view:
+    - Edit profile info (name, email, phone, NTRP, goals, parent email)
+    - Edit all four LTTDP sections (Save LTTDP button)
+    - Full session history with Edit button per session
+    - "Log Session" button → session form
+- Session log form:
+    - Shows LAST SESSION at the top before Cooper writes new notes
+      (so he can recall what was covered before logging the next session)
+    - Fields: date, duration (minutes), topics covered, notes
+    - All fields required
+    - Works in both create and edit mode
+
+
+PUBLIC NAV (VISIBLE TO EVERYONE)
+----------------------------------
+Six tabs across the top of all public pages:
+  Home | Player Profile | Store | Education | Link Tree | About Me
+
+Home: placeholder for future reels and blog posts
+Player Profile: the email login page
+Store: "coming soon" placeholder (book, merch)
+Education: "coming soon" placeholder (blog, newsletter, curriculum, virtual coaching)
+Link Tree: Instagram, TikTok, LinkedIn
+  → UPDATE THESE URLS when Cooper confirms his actual handles:
+      Instagram: https://www.instagram.com/cooperteachestennis
+      TikTok:    https://www.tiktok.com/@cooperteachestennis
+      LinkedIn:  https://www.linkedin.com/in/cooperteachestennis
+About Me: Cooper's bio and coaching approach (pulled from the Worker)
+
+
+FILE STRUCTURE (WHAT EACH FILE DOES)
+--------------------------------------
+index.html        Landing page — email input, "View as Guest" button
+home.html         Public home page — placeholder for future content
+register.html     Player self-registration form
+profile.html      Player's read-only view (profile + LTTDP + sessions)
+select.html       Multi-player selector for parents
+dashboard.html    Cooper's player list dashboard (coach only)
+player.html       Cooper's player edit view + LTTDP editor (coach only)
+session.html      Session log form with last-session reminder (coach only)
+coach.html        Invisible redirect page → GitHub OAuth (Cooper's bookmark)
+guest.html        Old guest page (now superseded by home.html)
+about.html        About Me tab — fetches Cooper's bio from the Worker
+store.html        Store tab — "coming soon" placeholder
+education.html    Education tab — "coming soon" placeholder
+linktree.html     Link Tree tab — social media links
+css/style.css     Single stylesheet for all pages
+js/auth.js        Session management (sessionStorage get/set/clear/redirect guards)
+js/api.js         Fetch wrapper — injects X-Player-Id header, handles 401s
+js/index-page.js  Landing page logic (email lookup, state switching)
+js/register.js    Registration form logic
+js/profile.js     Player profile view logic
+js/select.js      Parent profile selector logic
+js/dashboard.js   Coach dashboard logic
+js/player.js      Coach player editor logic
+js/session.js     Session log form logic (create + edit mode)
+js/home.js        Home page logic (detects if player is already signed in)
+js/about.js       About Me page logic (fetches from Worker API)
+js/guest.js       Old guest page logic (superseded)
+worker/index.js   Cloudflare Worker — ALL backend logic lives here
+wrangler.toml     Worker configuration and KV namespace binding
+
+
+INFRASTRUCTURE / ACCOUNTS
+---------------------------
+Cloudflare account:   Mitch Anderson (andermd535@gmail.com)
+Worker URL:           https://ctt-worker.andermd535.workers.dev
+Pages URL (live):     https://ctt-academy.pages.dev
+GitHub repo:          https://github.com/CooperTeachesTennis/CTTAcademy
+KV Namespace ID:      945aa45b37d94e22a71a5271a004b50c
+KV Preview ID:        ddf7b4d41a964abc8995343066cec6a1
+
+Worker secrets (set via `wrangler secret put`, never in any file):
+  GITHUB_CLIENT_ID     — OAuth app client ID
+  GITHUB_CLIENT_SECRET — OAuth app client secret (rotated during setup)
+  OWNER_GITHUB_ID      — 283034047 (Mitch's GitHub numeric user ID)
+
+GitHub OAuth app:
+  Name:         Cooper Teaches Tennis
+  Callback URL: https://ctt-worker.andermd535.workers.dev/api/auth/callback
+
+
+KV DATA SCHEMA
+--------------
+player:{playerId}             Full player object
+email-index:{email}           Array of playerIds linked to that email
+lttdp:{playerId}              LTTDP object (4 sections)
+sessions:list:{playerId}      Ordered array of session IDs (newest first)
+session:{sessionId}           Individual session object
+players:all                   Array of all player IDs (for dashboard)
+owner:session:{token}         Coach session (32-byte random token, 7-day TTL)
+oauth:state:{state}           CSRF protection for OAuth flow (10-min TTL)
+
+All player IDs and session IDs are UUID v4 (not sequential — not guessable).
+Email keys are always lowercased and trimmed before read/write.
+
+
+HOW TO DEPLOY CHANGES
+-----------------------
+After editing any file:
+
+  # Deploy Worker (backend changes):
+  wrangler deploy
+
+  # Deploy frontend (HTML/CSS/JS changes):
+  wrangler pages deploy /Users/mitchanderson/CTTA --project-name ctt-academy --commit-dirty=true
+
+  # Push to GitHub (keeps repo in sync):
+  git add -A && git commit -m "your message" && git push origin main
+
+All three are independent. Worker and Pages can be deployed separately.
+
+
+THINGS TO DO NEXT
+------------------
+1. Confirm Cooper's real social media URLs and update linktree.html
+2. Cooper needs to enable GitHub Pages on the CooperTeachesTennis/CTTAcademy
+   repo (Settings → Pages → select main branch) if we want the github.io URL
+   as a fallback — requires org admin access which Mitch doesn't have
+3. Custom domain setup (cooperteachestennis.com) through Cloudflare when ready
+4. Transfer Cloudflare account ownership to Cooper when ready
+5. Replace Mitch's OWNER_GITHUB_ID with Cooper's when he has a GitHub account
+6. Fill in About Me content with Cooper's real bio
+7. Future: Home page reels/blog, Store, Education content
+
+
+SECURITY DECISIONS MADE
+------------------------
+- Email-only player auth: intentional tradeoff. Anyone with a player's email
+  can see their profile. Acceptable because data is coaching notes only — no
+  financial, medical, or sensitive personal information.
+- Coach auth via GitHub OAuth: more secure than a PIN (PIN is brute-forceable;
+  GitHub OAuth is not). The /coach URL is hidden — not linked from anywhere on
+  the site. Finding the URL alone doesn't grant access.
+- sessionStorage for player sessions: clears on tab close. Appropriate for
+  shared devices (a parent at a front desk).
+- No secrets in any source file — all via wrangler secret put.
+- CORS locked to ctt-academy.pages.dev and cooperteachestennis.github.io only.
+- CSP headers on all Worker responses. No inline scripts anywhere in HTML.
