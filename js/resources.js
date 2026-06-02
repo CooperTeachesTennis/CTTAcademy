@@ -26,15 +26,22 @@
     return escHtml(text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   }
 
-  // Wraps selected text in the given input/textarea with **
-  function applyBold(el) {
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
+  // Wraps saved selection in the given input/textarea with **
+  function applyBold(el, start, end) {
     if (start === end) return;
     const val = el.value;
     el.value = val.slice(0, start) + '**' + val.slice(start, end) + '**' + val.slice(end);
-    el.setSelectionRange(start + 2, end + 2);
     el.focus();
+    el.setSelectionRange(start + 2, end + 2);
+  }
+
+  // Returns an object that tracks selection on an input/textarea and exposes a bold handler
+  function makeBoldHandler(el) {
+    let selStart = 0, selEnd = 0;
+    const save = () => { selStart = el.selectionStart; selEnd = el.selectionEnd; };
+    el.addEventListener('mouseup', save);
+    el.addEventListener('keyup', save);
+    return (e) => { e.preventDefault(); applyBold(el, selStart, selEnd); selStart = selEnd = 0; };
   }
 
   function showMsg(el, msg, type = 'error') {
@@ -117,10 +124,7 @@
       </div>
     `;
     row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
-    row.querySelector('.bold-desc-btn').addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      applyBold(row.querySelector('.link-description'));
-    });
+    row.querySelector('.bold-desc-btn').addEventListener('mousedown', makeBoldHandler(row.querySelector('.link-description')));
     return row;
   }
 
@@ -167,10 +171,7 @@
       linksList.appendChild(buildLinkRow(link));
     }
 
-    document.getElementById('bold-discounts-btn').addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      applyBold(document.getElementById('discount-codes-input'));
-    });
+    document.getElementById('bold-discounts-btn').addEventListener('mousedown', makeBoldHandler(document.getElementById('discount-codes-input')));
 
     document.getElementById('add-link-btn').addEventListener('click', () => {
       linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }));
