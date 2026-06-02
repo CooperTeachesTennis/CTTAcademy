@@ -168,20 +168,20 @@
     }
 
     const discountEl = document.getElementById('discount-codes-input');
-    const discountSel = { start: 0, end: 0 };
-    const saveDiscount = () => {
-      const s = discountEl.selectionStart, e = discountEl.selectionEnd;
-      if (s !== e) { discountSel.start = s; discountSel.end = e; }
-    };
-    ['select', 'mouseup', 'keyup'].forEach(ev => discountEl.addEventListener(ev, saveDiscount));
     document.getElementById('bold-discounts-btn').addEventListener('mousedown', (e) => {
       e.preventDefault();
-      applyBold(discountEl, discountSel.start, discountSel.end);
-      discountSel.start = discountSel.end = 0;
+      applyBold(discountEl, discountEl.selectionStart, discountEl.selectionEnd);
     });
 
     document.getElementById('bold-links-btn').addEventListener('mousedown', (e) => {
       e.preventDefault();
+      for (const el of document.querySelectorAll('.link-description')) {
+        if (el.selectionStart !== el.selectionEnd) {
+          applyBold(el, el.selectionStart, el.selectionEnd);
+          return;
+        }
+      }
+      // fallback: use saved selection
       if (descSel.el && descSel.start !== descSel.end) {
         applyBold(descSel.el, descSel.start, descSel.end);
         descSel.start = descSel.end = 0;
