@@ -676,7 +676,7 @@ async function handleResourcesPut(request, env, cors) {
   const links = Array.isArray(body.links)
     ? body.links
         .filter(l => l && typeof l.label === 'string' && typeof l.url === 'string')
-        .map(l => ({ label: l.label.trim(), url: l.url.trim() }))
+        .map(l => ({ label: l.label.trim(), url: l.url.trim(), description: typeof l.description === 'string' ? l.description.trim() : '' }))
         .filter(l => l.label || l.url)
     : [];
 

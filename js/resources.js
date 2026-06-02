@@ -9,9 +9,32 @@
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function textToHtml(text) {
+  // Escapes HTML, converts **bold** to <strong>, newlines to paragraphs
+  function renderMarkdown(text) {
     if (!text || !text.trim()) return '';
-    return text.trim().split('\n').map(line => `<p>${escHtml(line)}</p>`).join('');
+    return text.trim().split('\n')
+      .map(line => {
+        const escaped = escHtml(line).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+        return line.trim() ? `<p style="margin:0 0 4px;">${escaped}</p>` : '<br>';
+      })
+      .join('');
+  }
+
+  // Inline version for single-line fields (no paragraph wrapping)
+  function renderInline(text) {
+    if (!text) return '';
+    return escHtml(text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+
+  // Wraps selected text in the given input/textarea with **
+  function applyBold(el) {
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    if (start === end) return;
+    const val = el.value;
+    el.value = val.slice(0, start) + '**' + val.slice(start, end) + '**' + val.slice(end);
+    el.setSelectionRange(start + 2, end + 2);
+    el.focus();
   }
 
   function showMsg(el, msg, type = 'error') {
@@ -43,8 +66,8 @@
       ${hasDiscounts ? `
         <div class="card mt-16">
           <div class="card__title">Discount Codes</div>
-          <div id="discount-content" style="font-size:0.9375rem;line-height:1.7;color:var(--color-text);">
-            ${textToHtml(data.discountCodes)}
+          <div style="font-size:0.9375rem;line-height:1.7;color:var(--color-text);">
+            ${renderMarkdown(data.discountCodes)}
           </div>
         </div>
       ` : ''}
@@ -54,11 +77,12 @@
           <div class="card__title">Player Resources</div>
           <ul style="list-style:none;margin:0;padding:0;">
             ${data.links.map(l => `
-              <li style="padding:8px 0;border-bottom:1px solid var(--color-border);">
+              <li style="padding:12px 0;border-bottom:1px solid var(--color-border);">
                 <a href="${escHtml(l.url)}" target="_blank" rel="noopener noreferrer"
                    style="color:var(--color-primary);font-weight:500;font-size:0.9375rem;text-decoration:underline;">
-                  ${escHtml(l.label)}
+                  ${renderInline(l.label)}
                 </a>
+                ${l.description ? `<div style="font-size:0.875rem;color:var(--color-text-muted);margin-top:3px;">${renderInline(l.description)}</div>` : ''}
               </li>
             `).join('')}
           </ul>
@@ -71,17 +95,32 @@
     }
   }
 
-  function buildLinkRow(link, index) {
-    return `
-      <div class="link-row" data-index="${index}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+  // Returns a wired DOM element (not an HTML string) so events attach cleanly
+  function buildLinkRow(link) {
+    const row = document.createElement('div');
+    row.className = 'link-row';
+    row.style.cssText = 'border:1px solid var(--color-border);border-radius:8px;padding:12px;margin-bottom:10px;';
+    row.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
         <input type="text" class="link-label" placeholder="Label (e.g. Singles Strategy Book)"
-               value="${escHtml(link.label)}" style="flex:1;">
-        <input type="url" class="link-url" placeholder="https://..."
-               value="${escHtml(link.url)}" style="flex:2;">
+               value="${escHtml(link.label || '')}" style="flex:1;">
         <button class="btn btn--ghost btn--sm remove-link-btn" type="button"
                 style="color:#c0392b;flex-shrink:0;">Remove</button>
       </div>
+      <input type="url" class="link-url" placeholder="https://..."
+             value="${escHtml(link.url || '')}" style="width:100%;margin-bottom:8px;box-sizing:border-box;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="text" class="link-description" placeholder="Description (optional)"
+               value="${escHtml(link.description || '')}" style="flex:1;">
+        <button class="btn btn--ghost btn--sm bold-desc-btn" type="button"
+                title="Bold selected text" style="flex-shrink:0;font-weight:700;min-width:32px;">B</button>
+      </div>
     `;
+    row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
+    row.querySelector('.bold-desc-btn').addEventListener('click', () => {
+      applyBold(row.querySelector('.link-description'));
+    });
+    return row;
   }
 
   function renderEdit(data) {
@@ -96,9 +135,13 @@
 
       <div class="card">
         <div class="card__title">Discount Codes</div>
-        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:8px;">
-          One code per line. Players will see this exactly as you type it.
+        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:6px;">
+          One code per line. Select text and click <strong>B</strong> to bold it.
         </p>
+        <div style="margin-bottom:6px;">
+          <button class="btn btn--ghost btn--sm" id="bold-discounts-btn" type="button"
+                  title="Bold selected text" style="font-weight:700;min-width:32px;">B</button>
+        </div>
         <textarea id="discount-codes-input" style="min-height:120px;">${escHtml(data.discountCodes)}</textarea>
       </div>
 
@@ -106,10 +149,9 @@
         <div class="card__title">Player Resources</div>
         <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:12px;">
           Add links to Google Sheets, your book, or any other resource for players.
+          Select text in a description field and click <strong>B</strong> to bold it.
         </p>
-        <div id="links-list">
-          ${links.map((l, i) => buildLinkRow(l, i)).join('')}
-        </div>
+        <div id="links-list"></div>
         <button class="btn btn--secondary btn--sm mt-8" id="add-link-btn" type="button">+ Add link</button>
       </div>
 
@@ -119,20 +161,17 @@
       </div>
     `;
 
-    document.getElementById('add-link-btn').addEventListener('click', () => {
-      const list = document.getElementById('links-list');
-      const idx = list.querySelectorAll('.link-row').length;
-      const div = document.createElement('div');
-      div.innerHTML = buildLinkRow({ label: '', url: '' }, idx);
-      const row = div.firstElementChild;
-      list.appendChild(row);
-      row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
+    const linksList = document.getElementById('links-list');
+    for (const link of links) {
+      linksList.appendChild(buildLinkRow(link));
+    }
+
+    document.getElementById('bold-discounts-btn').addEventListener('click', () => {
+      applyBold(document.getElementById('discount-codes-input'));
     });
 
-    document.getElementById('links-list').addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-link-btn')) {
-        e.target.closest('.link-row').remove();
-      }
+    document.getElementById('add-link-btn').addEventListener('click', () => {
+      linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }));
     });
 
     document.getElementById('cancel-resources-btn').addEventListener('click', () => renderView(currentData));
@@ -143,12 +182,12 @@
       btn.disabled = true; btn.textContent = 'Saving…';
 
       const discountCodes = document.getElementById('discount-codes-input').value;
-      const linkRows = document.querySelectorAll('.link-row');
       const linksArr = [];
-      for (const row of linkRows) {
+      for (const row of document.querySelectorAll('.link-row')) {
         const label = row.querySelector('.link-label').value.trim();
         const url = row.querySelector('.link-url').value.trim();
-        if (label || url) linksArr.push({ label, url });
+        const description = row.querySelector('.link-description').value.trim();
+        if (label || url) linksArr.push({ label, url, description });
       }
 
       try {
