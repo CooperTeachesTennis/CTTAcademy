@@ -116,15 +116,10 @@
       </div>
       <input type="url" class="link-url" placeholder="https://..."
              value="${escHtml(link.url || '')}" style="width:100%;margin-bottom:8px;box-sizing:border-box;">
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" class="link-description" placeholder="Description (optional)"
-               value="${escHtml(link.description || '')}" style="flex:1;">
-        <button class="btn btn--ghost btn--sm bold-desc-btn" type="button"
-                title="Bold selected text" style="flex-shrink:0;font-weight:700;min-width:32px;">B</button>
-      </div>
+      <input type="text" class="link-description" placeholder="Description (optional)"
+             value="${escHtml(link.description || '')}" style="width:100%;box-sizing:border-box;">
     `;
     row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
-    row.querySelector('.bold-desc-btn').addEventListener('mousedown', makeBoldHandler(row.querySelector('.link-description')));
     return row;
   }
 
@@ -140,22 +135,25 @@
 
       <div class="card">
         <div class="card__title">Discount Codes</div>
-        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:6px;">
-          One code per line. Select text and click <strong>B</strong> to bold it.
-        </p>
-        <div style="margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <p style="margin:0;font-size:0.875rem;color:var(--color-text-muted);">
+            One code per line. Select text and click <strong>B</strong> to bold it.
+          </p>
           <button class="btn btn--ghost btn--sm" id="bold-discounts-btn" type="button"
-                  title="Bold selected text" style="font-weight:700;min-width:32px;">B</button>
+                  title="Bold selected text" style="font-weight:700;min-width:32px;flex-shrink:0;">B</button>
         </div>
         <textarea id="discount-codes-input" style="min-height:120px;">${escHtml(data.discountCodes)}</textarea>
       </div>
 
       <div class="card mt-16">
         <div class="card__title">Player Resources</div>
-        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:12px;">
-          Add links to Google Sheets, your book, or any other resource for players.
-          Select text in a description field and click <strong>B</strong> to bold it.
-        </p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <p style="margin:0;font-size:0.875rem;color:var(--color-text-muted);">
+            Add links below. Select text in a description field and click <strong>B</strong> to bold it.
+          </p>
+          <button class="btn btn--ghost btn--sm" id="bold-links-btn" type="button"
+                  title="Bold selected text in description" style="font-weight:700;min-width:32px;flex-shrink:0;">B</button>
+        </div>
         <div id="links-list"></div>
         <button class="btn btn--secondary btn--sm mt-8" id="add-link-btn" type="button">+ Add link</button>
       </div>
@@ -172,6 +170,26 @@
     }
 
     document.getElementById('bold-discounts-btn').addEventListener('mousedown', makeBoldHandler(document.getElementById('discount-codes-input')));
+
+    // Track the last description field that had a selection, via event delegation on the list
+    let lastDesc = { el: null, start: 0, end: 0 };
+    linksList.addEventListener('mouseup', (e) => {
+      if (e.target.classList.contains('link-description')) {
+        lastDesc = { el: e.target, start: e.target.selectionStart, end: e.target.selectionEnd };
+      }
+    });
+    linksList.addEventListener('keyup', (e) => {
+      if (e.target.classList.contains('link-description')) {
+        lastDesc = { el: e.target, start: e.target.selectionStart, end: e.target.selectionEnd };
+      }
+    });
+    document.getElementById('bold-links-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      if (lastDesc.el && lastDesc.start !== lastDesc.end) {
+        applyBold(lastDesc.el, lastDesc.start, lastDesc.end);
+        lastDesc = { el: null, start: 0, end: 0 };
+      }
+    });
 
     document.getElementById('add-link-btn').addEventListener('click', () => {
       linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }));
