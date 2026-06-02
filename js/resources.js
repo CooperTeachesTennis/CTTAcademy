@@ -117,7 +117,8 @@
       </div>
     `;
     row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
-    row.querySelector('.bold-desc-btn').addEventListener('click', () => {
+    row.querySelector('.bold-desc-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
       applyBold(row.querySelector('.link-description'));
     });
     return row;
@@ -166,7 +167,8 @@
       linksList.appendChild(buildLinkRow(link));
     }
 
-    document.getElementById('bold-discounts-btn').addEventListener('click', () => {
+    document.getElementById('bold-discounts-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
       applyBold(document.getElementById('discount-codes-input'));
     });
 
