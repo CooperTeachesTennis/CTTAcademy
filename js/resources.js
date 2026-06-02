@@ -93,8 +93,8 @@
     }
   }
 
-  // Returns a wired DOM element (not an HTML string) so events attach cleanly
-  function buildLinkRow(link) {
+  // descSel is a shared mutable object { el, start, end } updated by all description textareas
+  function buildLinkRow(link, descSel) {
     const row = document.createElement('div');
     row.className = 'link-row';
     row.style.cssText = 'border:1px solid var(--color-border);border-radius:8px;padding:12px;margin-bottom:10px;';
@@ -107,9 +107,15 @@
       </div>
       <input type="url" class="link-url" placeholder="https://..."
              value="${escHtml(link.url || '')}" style="width:100%;margin-bottom:8px;box-sizing:border-box;">
-      <input type="text" class="link-description" placeholder="Description (optional)"
-             value="${escHtml(link.description || '')}" style="width:100%;box-sizing:border-box;">
+      <textarea class="link-description" placeholder="Description (optional)"
+                rows="2" style="width:100%;box-sizing:border-box;resize:vertical;">${escHtml(link.description || '')}</textarea>
     `;
+    const desc = row.querySelector('.link-description');
+    const saveSel = () => {
+      const s = desc.selectionStart, e = desc.selectionEnd;
+      if (s !== e) { descSel.el = desc; descSel.start = s; descSel.end = e; }
+    };
+    ['select', 'mouseup', 'keyup'].forEach(ev => desc.addEventListener(ev, saveSel));
     row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
     return row;
   }
@@ -156,26 +162,34 @@
     `;
 
     const linksList = document.getElementById('links-list');
+    const descSel = { el: null, start: 0, end: 0 };
     for (const link of links) {
-      linksList.appendChild(buildLinkRow(link));
+      linksList.appendChild(buildLinkRow(link, descSel));
     }
 
+    const discountEl = document.getElementById('discount-codes-input');
+    const discountSel = { start: 0, end: 0 };
+    const saveDiscount = () => {
+      const s = discountEl.selectionStart, e = discountEl.selectionEnd;
+      if (s !== e) { discountSel.start = s; discountSel.end = e; }
+    };
+    ['select', 'mouseup', 'keyup'].forEach(ev => discountEl.addEventListener(ev, saveDiscount));
     document.getElementById('bold-discounts-btn').addEventListener('mousedown', (e) => {
       e.preventDefault();
-      const el = document.getElementById('discount-codes-input');
-      applyBold(el, el.selectionStart, el.selectionEnd);
+      applyBold(discountEl, discountSel.start, discountSel.end);
+      discountSel.start = discountSel.end = 0;
     });
 
     document.getElementById('bold-links-btn').addEventListener('mousedown', (e) => {
       e.preventDefault();
-      const active = document.activeElement;
-      if (active && active.classList.contains('link-description')) {
-        applyBold(active, active.selectionStart, active.selectionEnd);
+      if (descSel.el && descSel.start !== descSel.end) {
+        applyBold(descSel.el, descSel.start, descSel.end);
+        descSel.start = descSel.end = 0;
       }
     });
 
     document.getElementById('add-link-btn').addEventListener('click', () => {
-      linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }));
+      linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }, descSel));
     });
 
     document.getElementById('cancel-resources-btn').addEventListener('click', () => renderView(currentData));
