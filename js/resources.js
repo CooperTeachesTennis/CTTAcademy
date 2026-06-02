@@ -35,15 +35,6 @@
     el.setSelectionRange(start + 2, end + 2);
   }
 
-  // Returns an object that tracks selection on an input/textarea and exposes a bold handler
-  function makeBoldHandler(el) {
-    let selStart = 0, selEnd = 0;
-    const save = () => { selStart = el.selectionStart; selEnd = el.selectionEnd; };
-    el.addEventListener('mouseup', save);
-    el.addEventListener('keyup', save);
-    return (e) => { e.preventDefault(); applyBold(el, selStart, selEnd); selStart = selEnd = 0; };
-  }
-
   function showMsg(el, msg, type = 'error') {
     el.textContent = msg;
     el.className = `alert alert--${type} is-visible`;
@@ -135,24 +126,24 @@
 
       <div class="card">
         <div class="card__title">Discount Codes</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <p style="margin:0;font-size:0.875rem;color:var(--color-text-muted);">
-            One code per line. Select text and click <strong>B</strong> to bold it.
-          </p>
+        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:4px;">
+          One code per line. Select text and click <strong>B</strong> to bold it.
+        </p>
+        <div style="text-align:right;margin-bottom:2px;">
           <button class="btn btn--ghost btn--sm" id="bold-discounts-btn" type="button"
-                  title="Bold selected text" style="font-weight:700;min-width:32px;flex-shrink:0;">B</button>
+                  title="Bold selected text" style="font-weight:700;min-width:32px;">B</button>
         </div>
         <textarea id="discount-codes-input" style="min-height:120px;">${escHtml(data.discountCodes)}</textarea>
       </div>
 
       <div class="card mt-16">
         <div class="card__title">Player Resources</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <p style="margin:0;font-size:0.875rem;color:var(--color-text-muted);">
-            Add links below. Select text in a description field and click <strong>B</strong> to bold it.
-          </p>
+        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:4px;">
+          Add links below. Select text in a description field and click <strong>B</strong> to bold it.
+        </p>
+        <div style="text-align:right;margin-bottom:4px;">
           <button class="btn btn--ghost btn--sm" id="bold-links-btn" type="button"
-                  title="Bold selected text in description" style="font-weight:700;min-width:32px;flex-shrink:0;">B</button>
+                  title="Bold selected text in description" style="font-weight:700;min-width:32px;">B</button>
         </div>
         <div id="links-list"></div>
         <button class="btn btn--secondary btn--sm mt-8" id="add-link-btn" type="button">+ Add link</button>
@@ -169,25 +160,17 @@
       linksList.appendChild(buildLinkRow(link));
     }
 
-    document.getElementById('bold-discounts-btn').addEventListener('mousedown', makeBoldHandler(document.getElementById('discount-codes-input')));
+    document.getElementById('bold-discounts-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const el = document.getElementById('discount-codes-input');
+      applyBold(el, el.selectionStart, el.selectionEnd);
+    });
 
-    // Track the last description field that had a selection, via event delegation on the list
-    let lastDesc = { el: null, start: 0, end: 0 };
-    linksList.addEventListener('mouseup', (e) => {
-      if (e.target.classList.contains('link-description')) {
-        lastDesc = { el: e.target, start: e.target.selectionStart, end: e.target.selectionEnd };
-      }
-    });
-    linksList.addEventListener('keyup', (e) => {
-      if (e.target.classList.contains('link-description')) {
-        lastDesc = { el: e.target, start: e.target.selectionStart, end: e.target.selectionEnd };
-      }
-    });
     document.getElementById('bold-links-btn').addEventListener('mousedown', (e) => {
       e.preventDefault();
-      if (lastDesc.el && lastDesc.start !== lastDesc.end) {
-        applyBold(lastDesc.el, lastDesc.start, lastDesc.end);
-        lastDesc = { el: null, start: 0, end: 0 };
+      const active = document.activeElement;
+      if (active && active.classList.contains('link-description')) {
+        applyBold(active, active.selectionStart, active.selectionEnd);
       }
     });
 
