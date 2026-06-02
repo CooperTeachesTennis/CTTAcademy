@@ -107,11 +107,12 @@
     profileCard.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
         <div class="card__title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Player Info</div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn--${inactive ? 'secondary' : 'ghost'} btn--sm" id="toggle-active-btn" type="button">
             ${inactive ? 'Reactivate' : 'Mark Inactive'}
           </button>
           <button class="btn btn--secondary btn--sm" id="edit-profile-btn" type="button">Edit</button>
+          <button class="btn btn--ghost btn--sm" id="delete-player-btn" type="button" style="color:#c0392b;">Delete</button>
         </div>
       </div>
       <div id="profile-msg" class="alert" role="alert"></div>
@@ -150,6 +151,26 @@
 
     document.getElementById('edit-profile-btn').addEventListener('click', () => {
       renderProfileEdit(player);
+    });
+
+    document.getElementById('delete-player-btn').addEventListener('click', async () => {
+      const name = `${player.firstName} ${player.lastName}`;
+      if (!window.confirm(`Permanently delete ${name}? All sessions, LTTDP, and profile data will be removed. This cannot be undone.`)) return;
+      const btn = document.getElementById('delete-player-btn');
+      btn.disabled = true; btn.textContent = 'Deleting…';
+      try {
+        const res = await window.CTTAPI.apiDelete(`/api/player/${playerId}`);
+        if (!res || !res.ok) {
+          const data = await window.CTTAPI.parseJson(res);
+          showMsg(document.getElementById('profile-msg'), data?.error || 'Delete failed.');
+          btn.disabled = false; btn.textContent = 'Delete';
+          return;
+        }
+        window.location.href = '/dashboard.html';
+      } catch {
+        showMsg(document.getElementById('profile-msg'), 'Something went wrong.');
+        btn.disabled = false; btn.textContent = 'Delete';
+      }
     });
 
     document.getElementById('toggle-active-btn').addEventListener('click', async () => {

@@ -135,6 +135,7 @@ CTTAcademy/
 ├── about.html          # About Me tab (fetches from Worker)
 ├── store.html          # Store tab (placeholder)
 ├── education.html      # Education tab (placeholder)
+├── resources.html      # Resources tab — coach-editable discount codes + links
 ├── linktree.html       # Link Tree tab (Instagram, TikTok, LinkedIn)
 ├── guest.html          # Legacy — superseded by home.html
 ├── css/
@@ -150,7 +151,8 @@ CTTAcademy/
 │   ├── about.js        # About Me (fetches from /api/guest/info)
 │   ├── dashboard.js    # Coach dashboard
 │   ├── player.js       # Coach player editor
-│   └── session.js      # Session log (create + edit mode)
+│   ├── session.js      # Session log (create + edit mode)
+│   └── resources.js    # Resources page (public view + coach edit)
 ├── worker/
 │   └── index.js        # Cloudflare Worker — all backend logic
 ├── wrangler.toml       # Worker config + KV binding (no secrets)
@@ -174,6 +176,7 @@ session:{sessionId}           Individual or group session object
 players:all                   Array of all player IDs (for dashboard)
 owner:session:{token}         Coach session (32-byte random token, 7-day TTL)
 oauth:state:{state}           CSRF protection for OAuth (10-min TTL)
+content:resources             Coach-editable resources page content (discountCodes + links array)
 ```
 
 Player and session IDs are UUID v4. Email keys are always lowercased + trimmed.
@@ -207,6 +210,7 @@ Referrer-Policy headers. CORS is locked to `ctt-academy.pages.dev` and
 | POST /api/player | none | Create player (registration) |
 | GET /api/player/:id | cookie or X-Player-Id | Get player |
 | PUT /api/player/:id | cookie | Update player (coach only) |
+| DELETE /api/player/:id | cookie | Delete player + all data (coach only) |
 | GET /api/players | cookie | All players; `?include_inactive=true` to include inactive |
 | GET /api/analytics | cookie | Stats: active/inactive counts, NTRP distribution, unique session count |
 | GET /api/lttdp/:id | cookie or X-Player-Id | Get LTTDP |
@@ -216,6 +220,8 @@ Referrer-Policy headers. CORS is locked to `ctt-academy.pages.dev` and
 | POST /api/session | cookie | Create session (coach only) |
 | PUT /api/session/:id | cookie | Edit session (coach only) |
 | GET /api/guest/info | none | Static Cooper bio/info |
+| GET /api/resources | none | Get resources page content |
+| PUT /api/resources | cookie | Update resources page content (coach only) |
 
 ---
 
@@ -247,8 +253,9 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
 - Last-session reminder on session log form
 - Coach dashboard: player list with search, add player
 - Coach player editor: static view with Edit toggle for profile + LTTDP independently; session history with edit links
-- Coach nav mirrors public nav: Home | Your Players | Store | Education | Link Tree | About Me
-- Public nav: Home | Player Profile | Store | Education | Link Tree | About Me
+- Coach nav mirrors public nav: Home | Your Players | Store | Education | Resources | Link Tree | About Me
+- Public nav: Home | Player Profile | Store | Education | Resources | Link Tree | About Me
+- When coach token is in sessionStorage, public pages auto-swap "Player Profile" → "Your Players" and "Sign In" → "Sign out" via auth.js DOMContentLoaded hook
 - Placeholder pages: Store, Education (coming soon)
 - Link Tree: Instagram, TikTok, LinkedIn
 - About Me: fetched from Worker
@@ -265,6 +272,15 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
   (deduplicated by groupSessionId), Inactive count (shown when > 0); NTRP breakdown chips
 - **CSV export:** "Export CSV" button on dashboard — active players only, dated filename,
   pure JS (no libraries)
+- **Delete player:** Red "Delete" button on player.html; requires confirm dialog; full KV
+  cleanup (player record, email-index, lttdp, sessions, players:all); coach-only via DELETE /api/player/:id
+- **Resources page:** `resources.html` / `js/resources.js` — public read-only view; coach
+  can edit via Edit button (shown only when coach token present); sections: Discount Codes
+  (free-form text) and Player Resources (label+URL link list); stored as `content:resources`
+  in KV; GET /api/resources (public) and PUT /api/resources (coach)
+- **Nav coach swap:** `auth.js` auto-detects coach token on DOMContentLoaded and swaps
+  "Player Profile" tab → "Your Players" (dashboard.html) on public pages; also swaps
+  "Sign In" top-nav link to "Sign out" behavior
 
 ### Known Issues / Flagged for Future Session
 
@@ -374,3 +390,4 @@ Before any push to `main`:
 | June 2026 | Active/inactive players, group sessions, analytics panel, CSV export — see lastsessionssummary.txt |
 | June 2026 | Group session player picker improved — filter input + selected-player chips |
 | June 2026 | USER_GUIDE.md created — plain-language coach guide, updated each session |
+| June 2026 | Delete player (coach-only), Resources page (coach-editable), nav coach swap fix |

@@ -47,6 +47,10 @@
     return apiFetch(path, { method: 'PUT', body: JSON.stringify(body) });
   }
 
+  async function apiDelete(path) {
+    return apiFetch(path, { method: 'DELETE' });
+  }
+
   async function parseJson(res) {
     if (!res) return null;
     try {
@@ -56,5 +60,5 @@
     }
   }
 
-  window.CTTAPI = { apiFetch, apiGet, apiPost, apiPut, parseJson };
+  window.CTTAPI = { apiFetch, apiGet, apiPost, apiPut, apiDelete, parseJson };
 })();

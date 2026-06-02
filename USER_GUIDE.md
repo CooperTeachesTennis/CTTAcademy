@@ -76,6 +76,11 @@ In the Player Info section, there's a **Mark Inactive** button next to the Edit 
 
 > When an inactive player logs into the site, they see a message letting them know their profile is inactive and to contact you to resume.
 
+### Deleting a Player
+In the Player Info section, there's a red **Delete** button.
+
+Click it and confirm the dialog to permanently remove the player and all their data — profile, LTTDP, and every session. **This cannot be undone.** Use Mark Inactive instead if you might want their history later. Only delete if you're sure the record is no longer needed (e.g. a test profile or a data entry mistake).
+
 ### Long-Term Tennis Development Plan (LTTDP)
 Four sections: Goals, Technical Skills, Patterns & Plays, On/Off Season.
 
@@ -160,6 +165,26 @@ Players cannot edit anything. They cannot see other players' profiles.
 
 ---
 
+---
+
+## Resources Page
+
+The **Resources** tab is visible to everyone — players, parents, and visitors. You manage its content when you're signed in as a coach.
+
+### What you can put there
+- **Discount Codes** — type codes one per line, exactly as you want players to see them (e.g. "Tennis Warehouse — use code CTT10 for 10% off").
+- **Player Resources** — a list of links. Each link has a label and a URL. Use this for Google Sheets you maintain for players, your book, or any other external resource.
+
+### Editing the Resources page
+1. Open the Resources tab while signed in as a coach.
+2. An **Edit** button appears at the top right — click it.
+3. Update the Discount Codes box and add/remove links as needed.
+4. Click **Save**. Changes go live immediately.
+
+Players and guests see the content in read-only view without the Edit button.
+
+---
+
 ## Quick Reference
 
 | Page | How to get there |
@@ -169,3 +194,4 @@ Players cannot edit anything. They cannot see other players' profiles.
 | Log a session | Dashboard → Log session · or · Player profile → + Log session |
 | Add a player | Dashboard → + Add player |
 | Export player emails | Dashboard → Export CSV |
+| Edit Resources | Resources tab (while signed in as coach) → Edit |

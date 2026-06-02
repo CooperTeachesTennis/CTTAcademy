@@ -122,6 +122,28 @@
     window.location.href = '/index.html';
   }
 
+  function swapNavForCoach() {
+    const token = sessionStorage.getItem(COACH_TOKEN_KEY);
+    if (!token) return;
+    const tabs = document.querySelectorAll('.tab-nav__item');
+    for (const tab of tabs) {
+      if (tab.getAttribute('href') === 'index.html') {
+        tab.setAttribute('href', 'dashboard.html');
+        tab.textContent = 'Your Players';
+        break;
+      }
+    }
+    const signInLink = document.querySelector('.nav-actions .nav-link[href="index.html"]');
+    if (signInLink) {
+      signInLink.textContent = 'Sign out';
+      signInLink.removeAttribute('href');
+      signInLink.style.cursor = 'pointer';
+      signInLink.addEventListener('click', () => window.CTTAuth.logout());
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', swapNavForCoach);
+
   window.CTTAuth = {
     getCoachToken,
     clearCoachToken,

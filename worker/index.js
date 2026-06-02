@@ -340,6 +340,55 @@ async function handlePlayerUpdate(request, env, playerId, cors) {
   return json(updated, 200, cors);
 }
 
+// ── Delete player ─────────────────────────────────────────────────────────────
+
+async function handlePlayerDelete(request, env, playerId, cors) {
+  const session = await validateOwnerSession(request, env);
+  if (!session) return err('Authentication required', 401, cors);
+
+  const player = await env.CTT_KV.get(`player:${playerId}`, { type: 'json' });
+  if (!player) return err('Player not found', 404, cors);
+
+  // Remove from players:all
+  const allIds = (await env.CTT_KV.get('players:all', { type: 'json' })) || [];
+  const filteredAll = allIds.filter(id => id !== playerId);
+  await env.CTT_KV.put('players:all', JSON.stringify(filteredAll));
+
+  // Remove from email-index (player's own email)
+  const normalized = normalizeEmail(player.email);
+  const emailIds = (await env.CTT_KV.get(`email-index:${normalized}`, { type: 'json' })) || [];
+  const filteredEmail = emailIds.filter(id => id !== playerId);
+  if (filteredEmail.length === 0) {
+    await env.CTT_KV.delete(`email-index:${normalized}`);
+  } else {
+    await env.CTT_KV.put(`email-index:${normalized}`, JSON.stringify(filteredEmail));
+  }
+
+  // Remove from email-index (parent email, if different)
+  if (player.parentEmail && player.parentEmail !== normalized) {
+    const parentIds = (await env.CTT_KV.get(`email-index:${player.parentEmail}`, { type: 'json' })) || [];
+    const filteredParent = parentIds.filter(id => id !== playerId);
+    if (filteredParent.length === 0) {
+      await env.CTT_KV.delete(`email-index:${player.parentEmail}`);
+    } else {
+      await env.CTT_KV.put(`email-index:${player.parentEmail}`, JSON.stringify(filteredParent));
+    }
+  }
+
+  // Delete all sessions
+  const sessionIds = (await env.CTT_KV.get(`sessions:list:${playerId}`, { type: 'json' })) || [];
+  await Promise.all(sessionIds.map(sid => env.CTT_KV.delete(`session:${sid}`)));
+  await env.CTT_KV.delete(`sessions:list:${playerId}`);
+
+  // Delete LTTDP
+  await env.CTT_KV.delete(`lttdp:${playerId}`);
+
+  // Delete player record
+  await env.CTT_KV.delete(`player:${playerId}`);
+
+  return json({ ok: true }, 200, cors);
+}
+
 // ── All players ───────────────────────────────────────────────────────────────
 
 async function handlePlayersAll(request, env, cors) {
@@ -609,6 +658,33 @@ async function handleSessionUpdate(request, env, sessionId, cors) {
   return json(updated, 200, cors);
 }
 
+// ── Resources ─────────────────────────────────────────────────────────────────
+
+async function handleResourcesGet(request, env, cors) {
+  const data = (await env.CTT_KV.get('content:resources', { type: 'json' })) || { discountCodes: '', links: [] };
+  return json(data, 200, cors);
+}
+
+async function handleResourcesPut(request, env, cors) {
+  const session = await validateOwnerSession(request, env);
+  if (!session) return err('Authentication required', 401, cors);
+
+  let body;
+  try { body = await request.json(); } catch { return err('Invalid request body', 400, cors); }
+
+  const discountCodes = typeof body.discountCodes === 'string' ? body.discountCodes : '';
+  const links = Array.isArray(body.links)
+    ? body.links
+        .filter(l => l && typeof l.label === 'string' && typeof l.url === 'string')
+        .map(l => ({ label: l.label.trim(), url: l.url.trim() }))
+        .filter(l => l.label || l.url)
+    : [];
+
+  const updated = { discountCodes, links, updatedAt: new Date().toISOString() };
+  await env.CTT_KV.put('content:resources', JSON.stringify(updated));
+  return json(updated, 200, cors);
+}
+
 // ── Guest ─────────────────────────────────────────────────────────────────────
 
 function handleGuestInfo(cors) {
@@ -655,6 +731,7 @@ export default {
       if (playerMatch) {
         if (method === 'GET') return handlePlayerGet(request, env, playerMatch[1], cors);
         if (method === 'PUT') return handlePlayerUpdate(request, env, playerMatch[1], cors);
+        if (method === 'DELETE') return handlePlayerDelete(request, env, playerMatch[1], cors);
       }
 
       // LTTDP
@@ -675,6 +752,10 @@ export default {
 
       const sessionUpdateMatch = pathname.match(/^\/api\/session\/([^/]+)$/);
       if (sessionUpdateMatch && method === 'PUT') return handleSessionUpdate(request, env, sessionUpdateMatch[1], cors);
+
+      // Resources
+      if (method === 'GET' && pathname === '/api/resources') return handleResourcesGet(request, env, cors);
+      if (method === 'PUT' && pathname === '/api/resources') return handleResourcesPut(request, env, cors);
 
       // Guest
       if (method === 'GET' && pathname === '/api/guest/info') return handleGuestInfo(cors);
