@@ -155,7 +155,7 @@
 
     document.getElementById('delete-player-btn').addEventListener('click', async () => {
       const name = `${player.firstName} ${player.lastName}`;
-      if (!window.confirm(`Permanently delete ${name}? All sessions, LTTDP, and profile data will be removed. This cannot be undone.`)) return;
+      if (!window.confirm(`Are you sure? Deleting a player profile is permanent and irreversible.`)) return;
       const btn = document.getElementById('delete-player-btn');
       btn.disabled = true; btn.textContent = 'Deleting…';
       try {
