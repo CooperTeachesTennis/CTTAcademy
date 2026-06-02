@@ -107,6 +107,20 @@ WHAT WE BUILT
    Files changed: js/resources.js (rewritten), worker/index.js (description field)
 
 
+6. BOLD FORMATTING — FINAL STATE
+   Bold button (B) works for Discount Codes only. Player Resources descriptions
+   use manual **asterisks** syntax instead. Multiple approaches were attempted for
+   the description fields (event delegation, document.activeElement, saved selection
+   on mouseup/keyup/select, textarea vs input[type=text]) — all failed consistently
+   despite discount codes working with the same pattern. Root cause not definitively
+   identified; likely a browser-specific interaction between the dynamic DOM insertion
+   of buildLinkRow and selection state. Not worth further investigation — manual
+   **syntax** is documented in USER_GUIDE.md and shown in each field's placeholder text.
+
+   Files changed: js/resources.js (removed bold button + all tracking code from
+   Player Resources section; placeholder text updated to show **asterisks** hint)
+
+
 DESIGN DECISIONS MADE THIS SESSION
 -------------------------------------
 - Hard delete exists alongside Mark Inactive. Confirmed dialog wording is

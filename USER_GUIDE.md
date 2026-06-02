@@ -182,7 +182,9 @@ The **Resources** tab is visible to everyone — players, parents, and visitors.
 4. Click **Save**. Changes go live immediately.
 
 ### Bold formatting
-Both sections support bold text. Select the text you want to bold, then click the **B** button above the Discount Codes box (or next to the description field for links). The selected text displays as bold when players view the page.
+**Discount Codes:** Select text and click the **B** button above the text box to bold it.
+
+**Player Resources descriptions:** Type `**asterisks**` around the text you want to bold — for example, `**Singles Strategy**` displays as **Singles Strategy**. The placeholder text in each description field shows a reminder.
 
 Players and guests see the content in read-only view without the Edit button.
 

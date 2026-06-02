@@ -276,8 +276,9 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
   cleanup (player record, email-index, lttdp, sessions, players:all); coach-only via DELETE /api/player/:id
 - **Resources page:** `resources.html` / `js/resources.js` — public read-only view; coach
   can edit via Edit button (shown only when coach token present); sections: Discount Codes
-  (free-form text) and Player Resources (label+URL link list); stored as `content:resources`
-  in KV; GET /api/resources (public) and PUT /api/resources (coach)
+  (free-form text, B button for bold) and Player Resources (label+URL+description link list,
+  manual `**asterisks**` for bold in descriptions); stored as `content:resources` in KV;
+  GET /api/resources (public) and PUT /api/resources (coach)
 - **Nav coach swap:** `auth.js` auto-detects coach token on DOMContentLoaded and swaps
   "Player Profile" tab → "Your Players" (dashboard.html) on public pages; also swaps
   "Sign In" top-nav link to "Sign out" behavior

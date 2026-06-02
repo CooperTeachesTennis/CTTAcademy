@@ -93,8 +93,7 @@
     }
   }
 
-  // descSel is a shared mutable object { el, start, end } updated by all description textareas
-  function buildLinkRow(link, descSel) {
+  function buildLinkRow(link) {
     const row = document.createElement('div');
     row.className = 'link-row';
     row.style.cssText = 'border:1px solid var(--color-border);border-radius:8px;padding:12px;margin-bottom:10px;';
@@ -107,15 +106,9 @@
       </div>
       <input type="url" class="link-url" placeholder="https://..."
              value="${escHtml(link.url || '')}" style="width:100%;margin-bottom:8px;box-sizing:border-box;">
-      <textarea class="link-description" placeholder="Description (optional)"
+      <textarea class="link-description" placeholder="Description — wrap text in **asterisks** to bold it"
                 rows="2" style="width:100%;box-sizing:border-box;resize:vertical;">${escHtml(link.description || '')}</textarea>
     `;
-    const desc = row.querySelector('.link-description');
-    const saveSel = () => {
-      const s = desc.selectionStart, e = desc.selectionEnd;
-      if (s !== e) { descSel.el = desc; descSel.start = s; descSel.end = e; }
-    };
-    ['select', 'mouseup', 'keyup'].forEach(ev => desc.addEventListener(ev, saveSel));
     row.querySelector('.remove-link-btn').addEventListener('click', () => row.remove());
     return row;
   }
@@ -144,13 +137,9 @@
 
       <div class="card mt-16">
         <div class="card__title">Player Resources</div>
-        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:4px;">
-          Add links below. Select text in a description field and click <strong>B</strong> to bold it.
+        <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:8px;">
+          Add links below. Wrap description text in <strong>**asterisks**</strong> to bold it.
         </p>
-        <div style="text-align:right;margin-bottom:4px;">
-          <button class="btn btn--ghost btn--sm" id="bold-links-btn" type="button"
-                  title="Bold selected text in description" style="font-weight:700;min-width:32px;">B</button>
-        </div>
         <div id="links-list"></div>
         <button class="btn btn--secondary btn--sm mt-8" id="add-link-btn" type="button">+ Add link</button>
       </div>
@@ -162,9 +151,8 @@
     `;
 
     const linksList = document.getElementById('links-list');
-    const descSel = { el: null, start: 0, end: 0 };
     for (const link of links) {
-      linksList.appendChild(buildLinkRow(link, descSel));
+      linksList.appendChild(buildLinkRow(link));
     }
 
     const discountEl = document.getElementById('discount-codes-input');
@@ -173,23 +161,8 @@
       applyBold(discountEl, discountEl.selectionStart, discountEl.selectionEnd);
     });
 
-    document.getElementById('bold-links-btn').addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      for (const el of document.querySelectorAll('.link-description')) {
-        if (el.selectionStart !== el.selectionEnd) {
-          applyBold(el, el.selectionStart, el.selectionEnd);
-          return;
-        }
-      }
-      // fallback: use saved selection
-      if (descSel.el && descSel.start !== descSel.end) {
-        applyBold(descSel.el, descSel.start, descSel.end);
-        descSel.start = descSel.end = 0;
-      }
-    });
-
     document.getElementById('add-link-btn').addEventListener('click', () => {
-      linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }, descSel));
+      linksList.appendChild(buildLinkRow({ label: '', url: '', description: '' }));
     });
 
     document.getElementById('cancel-resources-btn').addEventListener('click', () => renderView(currentData));
