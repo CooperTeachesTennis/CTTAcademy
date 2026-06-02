@@ -173,13 +173,16 @@ The **Resources** tab is visible to everyone — players, parents, and visitors.
 
 ### What you can put there
 - **Discount Codes** — type codes one per line, exactly as you want players to see them (e.g. "Tennis Warehouse — use code CTT10 for 10% off").
-- **Player Resources** — a list of links. Each link has a label and a URL. Use this for Google Sheets you maintain for players, your book, or any other external resource.
+- **Player Resources** — a list of links. Each link has a label, a URL, and an optional description. Use this for Google Sheets you maintain for players, your book, or any other external resource.
 
 ### Editing the Resources page
 1. Open the Resources tab while signed in as a coach.
 2. An **Edit** button appears at the top right — click it.
 3. Update the Discount Codes box and add/remove links as needed.
 4. Click **Save**. Changes go live immediately.
+
+### Bold formatting
+Both sections support bold text. Select the text you want to bold, then click the **B** button above the Discount Codes box (or next to the description field for links). The selected text displays as bold when players view the page.
 
 Players and guests see the content in read-only view without the Edit button.
 

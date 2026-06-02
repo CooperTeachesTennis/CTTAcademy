@@ -83,6 +83,30 @@ WHAT WE BUILT
                   profile.html
 
 
+5. RESOURCES PAGE — DESCRIPTION FIELD + BOLD FORMATTING
+   Two additions to the Resources page after initial build:
+
+   Description field:
+   - Each Player Resources link now has a third field: Description (optional)
+   - Stored as `description` on each link object in `content:resources` KV
+   - Displayed below the link label in view mode in smaller muted text
+   - Supports bold formatting same as other fields
+   - Worker updated to persist description through handleResourcesPut
+
+   Bold formatting:
+   - Implemented as lightweight **markdown** — select text, click B, it wraps
+     in ** markers (e.g. **bold text**)
+   - B button above the Discount Codes textarea
+   - B button next to each link's Description field
+   - renderMarkdown() renders ** markers as <strong> tags server-side for
+     the Discount Codes block (also handles newlines → paragraphs)
+   - renderInline() handles ** markers in link labels and descriptions
+   - No libraries — pure vanilla JS selection API (selectionStart/End)
+   - XSS-safe: escHtml() always runs before ** substitution
+
+   Files changed: js/resources.js (rewritten), worker/index.js (description field)
+
+
 DESIGN DECISIONS MADE THIS SESSION
 -------------------------------------
 - Hard delete exists alongside Mark Inactive. Confirmed dialog wording is
