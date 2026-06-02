@@ -1,3 +1,123 @@
+SESSION SUMMARY — June 2026 (session 5)
+Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
+================================================================================
+
+WHAT WE BUILT
+--------------
+
+1. DELETE PLAYER
+   Coaches can now permanently delete a player profile and all associated data.
+
+   How it works:
+   - Red "Delete" button appears in the Player Info header row on player.html
+     (alongside Edit and Mark Inactive), visible only in view mode
+   - Clicking Delete shows a confirm dialog: "Are you sure? Deleting a player
+     profile is permanent and irreversible."
+   - On confirm: calls DELETE /api/player/:id (coach-only endpoint)
+   - Worker cleans up all KV keys for that player:
+       player:{id}, lttdp:{id}, sessions:list:{id}, every session:{sessionId},
+       removes id from email-index:{email} (deletes key if array becomes empty),
+       removes id from email-index:{parentEmail} if different,
+       removes id from players:all
+   - Redirects to dashboard.html on success
+   - Inline error shown if the request fails
+
+   Design note: "Mark Inactive" remains the recommended path for players who
+   pause lessons — it preserves all history. Delete is for test profiles or
+   data entry mistakes.
+
+   Files changed: worker/index.js (handlePlayerDelete + route),
+                  js/player.js (button + confirm + apiDelete call),
+                  js/api.js (added apiDelete function)
+
+2. RESOURCES PAGE
+   New tab in the site nav for Cooper to share resources with players: discount
+   codes, Google Sheets links, his book, or anything else useful between sessions.
+
+   Public view:
+   - Anyone can visit resources.html without logging in
+   - Shows two sections: "Discount Codes" (formatted text) and "Player Resources"
+     (clickable links)
+   - Shows a "coming soon" empty state until Cooper adds content
+
+   Coach edit mode:
+   - When Cooper is signed in, an "Edit" button appears at the top right
+   - Edit mode: textarea for discount codes, dynamic list of label+URL pairs
+     with "Add link" and "Remove" buttons; matches the LTTDP inline edit pattern
+   - Save writes to KV as `content:resources`; changes are live immediately
+
+   Backend:
+   - GET /api/resources — public, returns content:resources from KV or empty default
+   - PUT /api/resources — coach-only, validates and saves updated content
+
+   Files created: resources.html, js/resources.js
+   Files changed: worker/index.js (handleResourcesGet, handleResourcesPut, routes)
+
+3. NAV COACH SWAP FIX
+   Bug: when a coach navigated to public tabs (Home, Store, About Me, etc.) the
+   tab nav showed "Player Profile" instead of "Your Players", and the top-right
+   showed "Sign In" instead of "Sign out".
+
+   Root cause: public pages hardcode the player-facing nav; there was no mechanism
+   to detect a signed-in coach and adjust the labels.
+
+   Fix: added swapNavForCoach() to auth.js, fired on DOMContentLoaded on every
+   page. If a coach token exists in sessionStorage:
+   - Finds the "Player Profile" tab (href="index.html") and swaps it to
+     "Your Players" → dashboard.html
+   - Finds the "Sign In" top-nav link and replaces it with "Sign out" behavior
+     (calls CTTAuth.logout())
+   No network call needed — purely reads sessionStorage.
+
+   Files changed: js/auth.js
+
+4. RESOURCES TAB ADDED TO ALL PAGES
+   The Resources tab appears in the tab nav across every page of the site,
+   positioned between Education and Link Tree.
+
+   Tab order: Home | Player Profile / Your Players | Store | Education |
+              Resources | Link Tree | About Me
+
+   Files changed: dashboard.html, player.html, session.html, home.html,
+                  store.html, education.html, about.html, linktree.html,
+                  profile.html
+
+
+DESIGN DECISIONS MADE THIS SESSION
+-------------------------------------
+- Hard delete exists alongside Mark Inactive. Confirmed dialog wording is
+  intentionally short and direct: "Are you sure? Deleting a player profile is
+  permanent and irreversible." — no data details in the message.
+- Resources page is fully public (no auth to view), matching the pattern of
+  Home, About Me, Education. Only write operations require coach auth.
+- Resource links section (Google Sheets, book, etc.) uses a single unified
+  label+URL list rather than separate sections per category — simpler for
+  Cooper to manage and easy to extend with more links later.
+- Nav coach swap runs synchronously from sessionStorage (no network round-trip)
+  since it's purely a UI label change; an expired token still shows "Your Players"
+  but clicking it redirects to index.html via dashboard.html's auth guard.
+
+
+OPEN / DEFERRED
+-----------------
+1. Populate Resources page with real content — Cooper to add:
+   - Discount codes when he has them
+   - Google Sheets URLs he maintains for players
+   - Singles Strategy book retail link
+2. Parent/guardian account model redesign — still deferred
+3. Confirm Cooper's real social media URLs → update linktree.html
+4. Update About Me content in worker/index.js → handleGuestInfo() with
+   Cooper's real bio
+5. Custom domain setup (cooperteachestennis.com) via Cloudflare when ready
+6. GitHub Pages on CooperTeachesTennis/CTTAcademy — requires Cooper to enable
+   in repo Settings (org admin access — Mitch can't do it)
+7. Testing with real high school players — Cooper is onboarding a few soon
+
+
+================================================================================
+[Prior session summaries below]
+================================================================================
+
 SESSION SUMMARY — June 2026 (session 4)
 Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
 ================================================================================
