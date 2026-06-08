@@ -3,26 +3,231 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cooper Teaches Tennis</title>
+  <title>Cooper Teaches Tennis | Sign In</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Split-panel layout — specific to this page only */
+
+    body {
+      padding: 0;
+      min-height: 100dvh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 46% 54%;
+      min-height: 100dvh;
+    }
+
+    /* ── Brand panel ── */
+    .brand-panel {
+      background: var(--color-primary);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 52px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(white 1px, transparent 1px);
+      background-size: 24px 24px;
+      opacity: 0.06;
+      pointer-events: none;
+    }
+
+    .brand-panel__content { position: relative; z-index: 1; }
+
+    .brand-panel__eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: oklch(1 0 0 / 0.50);
+      margin-bottom: 20px;
+    }
+
+    .brand-panel__wordmark {
+      font-size: clamp(3.25rem, 5.5vw, 5rem);
+      font-weight: 900;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 28px;
+    }
+
+    .brand-panel__tagline {
+      font-size: 1rem;
+      font-weight: 400;
+      color: oklch(1 0 0 / 0.62);
+      max-width: 28ch;
+      line-height: 1.55;
+    }
+
+    /* ── Form panel ── */
+    .form-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 52px 52px;
+      background: var(--color-bg);
+    }
+
+    .form-inner {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    /* ── Form heading ── */
+    .form-title {
+      font-size: 1.875rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--color-text);
+      margin-bottom: 6px;
+      line-height: 1.1;
+    }
+
+    .form-subtitle {
+      font-size: 0.9375rem;
+      color: var(--color-text-muted);
+      margin-bottom: 32px;
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    /* ── Override shared .btn for full-width on this page ── */
+    .form-inner .btn--primary {
+      width: 100%;
+      padding: 14px 20px;
+      margin-top: 4px;
+      font-weight: 700;
+      box-shadow: 0 2px 8px oklch(0.38 0.15 148 / 0.20),
+                  0 6px 20px oklch(0.38 0.15 148 / 0.14);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .form-inner .btn--primary:hover {
+        box-shadow: 0 4px 14px oklch(0.38 0.15 148 / 0.26),
+                    0 10px 30px oklch(0.38 0.15 148 / 0.18);
+      }
+    }
+
+    .form-inner .btn--secondary {
+      width: 100%;
+      padding: 13px 20px;
+      margin-top: 12px;
+    }
+
+    .form-inner .btn--ghost {
+      width: 100%;
+      padding: 10px 0;
+      font-size: 0.875rem;
+    }
+
+    /* ── Guest area ── */
+    .guest-area {
+      margin-top: 18px;
+      text-align: center;
+    }
+
+    /* ── Override shared .alert ── */
+    .form-inner .alert {
+      margin-bottom: 20px;
+    }
+
+    /* ── Override shared label ── */
+    .form-inner label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      letter-spacing: 0.005em;
+    }
+
+    /* ── Override shared input ── */
+    .form-inner input[type="email"] {
+      padding: 13px 15px;
+    }
+
+    /* ── Not-found state ── */
+    .notfound__title {
+      font-size: 1.875rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--color-text);
+      margin-bottom: 6px;
+      line-height: 1.1;
+    }
+
+    .notfound__body {
+      font-size: 0.9375rem;
+      color: var(--color-text-muted);
+      margin-bottom: 32px;
+      line-height: 1.55;
+    }
+
+    /* ── Mobile collapse ── */
+    @media (max-width: 767px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      .brand-panel {
+        justify-content: flex-start;
+        padding: 40px 24px 36px;
+      }
+
+      .brand-panel__wordmark {
+        font-size: clamp(2.5rem, 11vw, 3.25rem);
+        margin-bottom: 14px;
+      }
+
+      .form-panel {
+        padding: 40px 24px 52px;
+        align-items: flex-start;
+      }
+
+      .form-inner { max-width: 100%; }
+    }
+  </style>
 </head>
 <body>
-  <div class="page-center">
-    <div class="container" style="width:100%;max-width:420px;">
+  <div class="layout">
 
-      <div class="brand-block">
-        <div class="brand-block__logo">🎾</div>
-        <div class="brand-block__name">Cooper Teaches Tennis</div>
-        <div class="brand-block__tagline">Access your player profile &amp; session notes</div>
+    <!-- Left: Brand panel -->
+    <aside class="brand-panel">
+      <div class="brand-panel__content">
+        <p class="brand-panel__eyebrow">Tennis Academy</p>
+        <p class="brand-panel__wordmark" aria-label="Cooper Teaches Tennis">
+          <span>Cooper</span>
+          <span>Teaches</span>
+          <span>Tennis</span>
+        </p>
+        <p class="brand-panel__tagline">
+          Your session notes and coaching plan, in one place.
+        </p>
       </div>
+    </aside>
 
-      <!-- State 1: Email lookup form -->
-      <div id="state-lookup">
-        <div class="card">
-          <div id="lookup-error" class="alert alert-error" role="alert"></div>
+    <!-- Right: Form panel -->
+    <main class="form-panel">
+      <div class="form-inner">
+
+        <!-- State 1: Email lookup -->
+        <div id="state-lookup">
+          <h1 class="form-title">Sign in</h1>
+          <p class="form-subtitle">Enter your email to access your profile and notes.</p>
+
+          <div id="lookup-error" class="alert alert--error" role="alert"></div>
 
           <div class="form-group">
-            <label for="email-input">Your email address</label>
+            <label for="email-input">Email address</label>
             <input
               type="email"
               id="email-input"
@@ -32,35 +237,32 @@
             >
           </div>
 
-          <button class="btn btn--primary mt-16" id="lookup-btn" type="button">
+          <button class="btn btn--primary" id="lookup-btn" type="button">
             Access My Profile
           </button>
+
+          <div class="guest-area">
+            <a href="home.html" class="btn btn--ghost">Browse as a guest</a>
+          </div>
         </div>
 
-        <div class="text-center mt-16">
-          <a href="home.html" class="btn btn--ghost">View as Guest</a>
-        </div>
-      </div>
-
-      <!-- State 2: Email not found -->
-      <div id="state-notfound" style="display:none;">
-        <div class="card">
-          <p style="margin-bottom:16px;font-size:0.9375rem;">
-            We don't have a profile for that email yet.
-          </p>
-          <p class="text-muted" style="margin-bottom:20px;">
-            If you're a Cooper Teaches Tennis student, you can create your player profile below.
+        <!-- State 2: Email not found -->
+        <div id="state-notfound" style="display:none;">
+          <p class="notfound__title">No profile found.</p>
+          <p class="notfound__body">
+            If you're a Cooper Teaches Tennis student, create your player profile below.
           </p>
           <button class="btn btn--primary" id="create-profile-btn" type="button">
             Create My Profile
           </button>
-          <button class="btn btn--secondary mt-16" id="try-again-btn" type="button">
-            ← Try a different email
+          <button class="btn btn--secondary" id="try-again-btn" type="button">
+            Try a different email
           </button>
         </div>
-      </div>
 
-    </div>
+      </div>
+    </main>
+
   </div>
 
   <script src="js/auth.js"></script>

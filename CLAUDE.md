@@ -392,3 +392,4 @@ Before any push to `main`:
 | June 2026 | Group session player picker improved — filter input + selected-player chips |
 | June 2026 | USER_GUIDE.md created — plain-language coach guide, updated each session |
 | June 2026 | Delete player (coach-only), Resources page (coach-editable), nav coach swap fix |
+| June 2026 | Visual design overhaul — Outfit font, OKLCH green palette, split-panel login, entry animations, nav/card/tab component updates; no functional changes |

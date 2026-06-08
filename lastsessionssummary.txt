@@ -1,3 +1,93 @@
+SESSION SUMMARY — June 2026 (session 6)
+Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
+================================================================================
+
+WHAT WE CHANGED
+-----------------
+
+Visual design overhaul. No new features, no backend changes, no functional
+changes to how the site works. This was a pure CSS/HTML aesthetics pass.
+
+1. DESIGN SYSTEM — OKLCH COLOR TOKENS + OUTFIT FONT
+   - Replaced all hex/rgb color values with OKLCH perceptual color tokens
+   - New palette: forest green primary (oklch(0.38 0.15 148)), tennis-ball
+     yellow-green accent (oklch(0.90 0.10 105)), warm white surfaces tinted
+     toward green hue
+   - All surface, border, shadow, and tint values derived from the same hue
+     so the whole site feels like one system instead of arbitrary colors
+   - Switched body font from system-ui to Outfit (Google Fonts) — 400/500/
+     600/700/800/900 weights; tighter letter-spacing on headings (-0.025em
+     to -0.04em on display sizes)
+   - Files changed: css/style.css
+
+2. NAV BAR
+   - Restored solid green banner (was briefly white during redesign work)
+   - White wordmark and white/translucent ghost buttons on green background
+   - Proper hover states gated behind @media (hover: hover) and (pointer: fine)
+     so mobile touch targets don't flash hover on tap
+
+3. TAB NAV
+   - Active tab: pill/chip (background tint + bold weight) instead of underline
+   - 2px gap between items, 8px vertical padding — sits tighter below the green bar
+
+4. SIGN-IN PAGE (index.html)
+   - Replaced centered card layout with split panel: green brand panel left
+     (46%), white form right (54%)
+   - Brand panel: stacked "Cooper / Teaches / Tennis" wordmark, dot-grid
+     texture overlay, tagline
+   - Collapses to stacked layout on mobile (brand panel top, form below)
+   - No functional changes — same JS wiring, same states (lookup / not-found)
+
+5. STAT CARDS (dashboard analytics)
+   - 3px accent bar across top of each card
+   - Value numbers: larger (2.25rem), weight 900, green color
+   - Label: plain weight, no all-caps
+
+6. PLAYER CARDS + SESSION ENTRIES
+   - Stagger entry animation (rise-in: fade + 8px translateY, 45ms nth-child
+     steps) on player cards and session entries
+   - Player card hover: lifts 1px + deeper shadow (Emil-style), active:
+     scale(0.97)
+   - Selector card initials avatar: now solid green with white text (was amber)
+
+7. REMINDER PANEL
+   - Replaced hardcoded amber (#fffbeb / #fde68a) with system green tint
+     (oklch(0.38 0.15 148 / 0.06) background, matching border)
+
+8. BANNED PATTERNS REMOVED
+   Per taste-skill audit, removed text-transform: uppercase + letter-spacing
+   eyebrow treatment from four selectors that had it:
+   - .info-item__label (profile field labels)
+   - .reminder-panel__label
+   - .ntrp-breakdown__label
+   - .session-entry__individual-notes-label
+
+9. FOCUS RINGS + HOVER GUARDS
+   - Focus ring was using old green rgba() — now oklch(0.38 0.15 148 / 0.12)
+   - All :hover rules wrapped in @media (hover: hover) and (pointer: fine)
+     across nav, tabs, buttons, player cards, selector cards
+
+
+NO FUNCTIONAL CHANGES
+-----------------------
+- No new routes, endpoints, or Worker changes
+- No changes to JS files
+- All existing features work identically
+- No USER_GUIDE.md update needed (nothing Cooper does changed)
+
+
+DESIGN DECISIONS
+------------------
+- Kept green as primary (user confirmed — original green, not terracotta)
+- Split-panel login replaces centered card — more brand presence on landing
+- No logo generated — brand identity lives in the wordmark typography only
+  (taste-skill rule: no hand-rolled SVG logos)
+- Accent color shifted to tennis-ball yellow-green to give warmth alongside
+  the forest green rather than a second arbitrary color
+
+
+================================================================================
+
 SESSION SUMMARY — June 2026 (session 5)
 Cooper Teaches Tennis | CooperTeachesTennis/CTTAcademy
 ================================================================================
