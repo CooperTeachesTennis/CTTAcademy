@@ -76,6 +76,15 @@ NO FUNCTIONAL CHANGES
 - No USER_GUIDE.md update needed (nothing Cooper does changed)
 
 
+DEPLOYMENT
+-----------
+- Committed and pushed to GitHub (main)
+- Deployed to Cloudflare Pages via: npx wrangler pages deploy . --project-name ctt-academy --commit-dirty=true
+- Note: wrangler auth had expired on this machine — required npx wrangler login before deploy
+- Note: Cloudflare Pages does NOT auto-deploy from GitHub; wrangler deploy step is always required
+- CLAUDE.md deploy command updated: now uses npx wrangler and relative path (.) instead of old Mac absolute path
+
+
 DESIGN DECISIONS
 ------------------
 - Kept green as primary (user confirmed — original green, not terracotta)

@@ -307,14 +307,19 @@ KV Preview ID: `ddf7b4d41a964abc8995343066cec6a1`
 
 ```bash
 # Backend changes (worker/index.js):
-wrangler deploy
+npx wrangler deploy
 
 # Frontend changes (any HTML/CSS/JS):
-wrangler pages deploy /Users/mitchanderson/CTTA --project-name ctt-academy --commit-dirty=true
+npx wrangler pages deploy . --project-name ctt-academy --commit-dirty=true
 
 # Keep GitHub repo in sync:
 git add -A && git commit -m "description" && git push origin main
 ```
+
+Run commands from the project root. Use `npx wrangler` — a global `wrangler`
+install may not be on PATH. If you get an auth error, run `npx wrangler login`
+first (opens browser, one-time per machine). Cloudflare Pages does NOT
+auto-deploy from GitHub; the wrangler pages deploy step is required separately.
 
 Worker and Pages deploy independently. Always push to GitHub to keep the repo
 in sync with what's live.
