@@ -39,6 +39,7 @@ All active players listed alphabetically by last name.
 
 ### Buttons
 - **Export CSV** — downloads a spreadsheet of all active players (name, email, phone, NTRP level, goals, member since). Use this for email announcements, newsletters, or discount offers in Mailchimp or any email tool.
+- **Download backup** — saves a file with a copy of all your players, their plans, session notes, and the Resources page. Do this once in a while and keep the file somewhere safe (like your Google Drive). You don't need to open it — it's just insurance.
 - **+ Add player** — opens a form to manually register a new player.
 
 ---
@@ -79,7 +80,7 @@ In the Player Info section, there's a **Mark Inactive** button next to the Edit 
 ### Deleting a Player
 In the Player Info section, there's a red **Delete** button.
 
-Click it and confirm the dialog to permanently remove the player and all their data — profile, LTTDP, and every session. **This cannot be undone.** Use Mark Inactive instead if you might want their history later. Only delete if you're sure the record is no longer needed (e.g. a test profile or a data entry mistake).
+Click it and confirm the dialog to permanently remove the player and all their data — profile, LTTDP, and every session. **Deleted a player by mistake?** Tell Mitch within 30 days — a safety copy is kept for that long and he can bring the player back. After 30 days it's gone for good. Use Mark Inactive instead if you might want their history later. Only delete if you're sure the record is no longer needed (e.g. a test profile or a data entry mistake).
 
 ### Long-Term Tennis Development Plan (LTTDP)
 Four sections: Goals, Technical Skills, Patterns & Plays, On/Off Season.
@@ -199,4 +200,5 @@ Players and guests see the content in read-only view without the Edit button.
 | Log a session | Dashboard → Log session · or · Player profile → + Log session |
 | Add a player | Dashboard → + Add player |
 | Export player emails | Dashboard → Export CSV |
+| Save a backup of everything | Dashboard → Download backup |
 | Edit Resources | Resources tab (while signed in as coach) → Edit |

@@ -177,6 +177,7 @@ players:all                   Array of all player IDs (for dashboard)
 owner:session:{token}         Coach session (32-byte random token, 7-day TTL)
 oauth:state:{state}           CSRF protection for OAuth (10-min TTL)
 content:resources             Coach-editable resources page content (discountCodes + links array)
+trash:{playerId}              Delete snapshot (30-day TTL): deletedAt, deletedBy, player, lttdp, sessionIds, sessions{}, emailIndexKeys[]
 ```
 
 Player and session IDs are UUID v4. Email keys are always lowercased + trimmed.
@@ -203,25 +204,26 @@ Referrer-Policy headers. CORS is locked to `ctt-academy.pages.dev` and
 | Route | Auth | Description |
 |---|---|---|
 | GET /api/auth/github | none | Initiates GitHub OAuth |
-| GET /api/auth/callback | none | Completes OAuth, sets session cookie |
-| GET /api/auth/check | cookie | Returns `{authenticated: bool}` |
-| POST /api/auth/logout | cookie | Clears session |
+| GET /api/auth/callback | none | Completes OAuth, issues coach session token |
+| GET /api/auth/check | coach token | Returns `{authenticated: bool}` |
+| POST /api/auth/logout | coach token | Clears session |
 | POST /api/player/lookup | none | Email → player summaries |
 | POST /api/player | none | Create player (registration) |
-| GET /api/player/:id | cookie or X-Player-Id | Get player |
-| PUT /api/player/:id | cookie | Update player (coach only) |
-| DELETE /api/player/:id | cookie | Delete player + all data (coach only) |
-| GET /api/players | cookie | All players; `?include_inactive=true` to include inactive |
-| GET /api/analytics | cookie | Stats: active/inactive counts, NTRP distribution, unique session count |
-| GET /api/lttdp/:id | cookie or X-Player-Id | Get LTTDP |
-| PUT /api/lttdp/:id | cookie | Update LTTDP (coach only) |
-| GET /api/sessions/:id | cookie or X-Player-Id | Get session list |
-| GET /api/sessions/:id/latest | cookie | Most recent session (reminder panel) |
-| POST /api/session | cookie | Create session (coach only) |
-| PUT /api/session/:id | cookie | Edit session (coach only) |
+| GET /api/player/:id | coach token or X-Player-Id | Get player |
+| PUT /api/player/:id | coach token | Update player (coach only) |
+| DELETE /api/player/:id | coach token | Snapshots to `trash:{playerId}` (30-day TTL) first, then deletes player + all data (coach only) |
+| GET /api/players | coach token | All players; `?include_inactive=true` to include inactive |
+| GET /api/analytics | coach token | Stats: active/inactive counts, NTRP distribution, unique session count |
+| GET /api/backup | coach token | Full JSON backup: all players + LTTDP + sessions + resources (never auth/trash keys) |
+| GET /api/lttdp/:id | coach token or X-Player-Id | Get LTTDP |
+| PUT /api/lttdp/:id | coach token | Update LTTDP (coach only) |
+| GET /api/sessions/:id | coach token or X-Player-Id | Get session list |
+| GET /api/sessions/:id/latest | coach token | Most recent session (reminder panel) |
+| POST /api/session | coach token | Create session (coach only) |
+| PUT /api/session/:id | coach token | Edit session (coach only) |
 | GET /api/guest/info | none | Static Cooper bio/info |
 | GET /api/resources | none | Get resources page content |
-| PUT /api/resources | cookie | Update resources page content (coach only) |
+| PUT /api/resources | coach token | Update resources page content (coach only) |
 
 ---
 
@@ -324,6 +326,29 @@ auto-deploy from GitHub; the wrangler pages deploy step is required separately.
 Worker and Pages deploy independently. Always push to GitHub to keep the repo
 in sync with what's live.
 
+### Restore a deleted player
+
+Deleting a player first writes a snapshot to `trash:{playerId}` (30-day TTL).
+(Delete previously never worked in production because DELETE was missing from
+CORS `Access-Control-Allow-Methods`; it now works and snapshots to trash first.)
+There is no restore UI — restore is a manual runbook:
+
+```bash
+# 1. Read the snapshot
+npx wrangler kv key get --remote --binding CTT_KV "trash:<id>"
+
+# 2. Re-put each value (JSON-stringified) from the snapshot:
+npx wrangler kv key put --remote --binding CTT_KV "player:<id>" '<player json>'
+npx wrangler kv key put --remote --binding CTT_KV "lttdp:<id>" '<lttdp json>'        # skip if lttdp is null
+npx wrangler kv key put --remote --binding CTT_KV "sessions:list:<id>" '<sessionIds json>'
+npx wrangler kv key put --remote --binding CTT_KV "session:<sessionId>" '<session json>'   # one per entry in sessions{}
+```
+
+Then re-append the player id to `players:all` (get the array, add the id, put it
+back) and to each `email-index:{email}` key listed in `emailIndexKeys` (create the
+key as `["<id>"]` if it no longer exists). Group-session siblings were never
+touched by the delete, so nothing else needs repair.
+
 ---
 
 ## Working with Claude
@@ -398,3 +423,4 @@ Before any push to `main`:
 | June 2026 | USER_GUIDE.md created — plain-language coach guide, updated each session |
 | June 2026 | Delete player (coach-only), Resources page (coach-editable), nav coach swap fix |
 | June 2026 | Visual design overhaul — Outfit font, OKLCH green palette, split-panel login, entry animations, nav/card/tab component updates; no functional changes |
+| November 2026 | Safety net: delete snapshots to trash (30-day), coach backup download, DELETE CORS fix |

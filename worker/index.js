@@ -17,7 +17,7 @@ function getCorsHeaders(request) {
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id, X-Coach-Token',
     'Access-Control-Allow-Credentials': 'true',
   };
@@ -349,6 +349,34 @@ async function handlePlayerDelete(request, env, playerId, cors) {
   const player = await env.CTT_KV.get(`player:${playerId}`, { type: 'json' });
   if (!player) return err('Player not found', 404, cors);
 
+  // Snapshot everything to trash (30-day TTL) before deleting anything
+  try {
+    const snapEmail = normalizeEmail(player.email);
+    const snapLttdp = await env.CTT_KV.get(`lttdp:${playerId}`, { type: 'json' });
+    const snapSessionIds = (await env.CTT_KV.get(`sessions:list:${playerId}`, { type: 'json' })) || [];
+    const snapSessionList = await Promise.all(
+      snapSessionIds.map(sid => env.CTT_KV.get(`session:${sid}`, { type: 'json' }))
+    );
+    const snapSessions = {};
+    snapSessionIds.forEach((sid, i) => {
+      if (snapSessionList[i]) snapSessions[sid] = snapSessionList[i];
+    });
+    const emailIndexKeys = [snapEmail];
+    if (player.parentEmail && player.parentEmail !== snapEmail) emailIndexKeys.push(player.parentEmail);
+
+    await env.CTT_KV.put(`trash:${playerId}`, JSON.stringify({
+      deletedAt: new Date().toISOString(),
+      deletedBy: session.githubUserId,
+      player,
+      lttdp: snapLttdp || null,
+      sessionIds: snapSessionIds,
+      sessions: snapSessions,
+      emailIndexKeys,
+    }), { expirationTtl: 2592000 });
+  } catch {
+    return err('Delete failed', 500, cors);
+  }
+
   // Remove from players:all
   const allIds = (await env.CTT_KV.get('players:all', { type: 'json' })) || [];
   const filteredAll = allIds.filter(id => id !== playerId);
@@ -408,6 +436,31 @@ async function handlePlayersAll(request, env, cors) {
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
   return json({ players: valid }, 200, cors);
+}
+
+// ── Backup ────────────────────────────────────────────────────────────────────
+
+async function handleBackup(request, env, cors) {
+  const session = await validateOwnerSession(request, env);
+  if (!session) return err('Authentication required', 401, cors);
+
+  const allIds = (await env.CTT_KV.get('players:all', { type: 'json' })) || [];
+  const entries = await Promise.all(allIds.map(async (id) => {
+    const player = await env.CTT_KV.get(`player:${id}`, { type: 'json' });
+    if (!player) return null;
+    const lttdp = await env.CTT_KV.get(`lttdp:${id}`, { type: 'json' });
+    const sessionIds = (await env.CTT_KV.get(`sessions:list:${id}`, { type: 'json' })) || [];
+    const sessionRecords = await Promise.all(sessionIds.map(sid => env.CTT_KV.get(`session:${sid}`, { type: 'json' })));
+    return { player, lttdp: lttdp || null, sessions: sessionRecords.filter(Boolean) };
+  }));
+  const resources = (await env.CTT_KV.get('content:resources', { type: 'json' })) || { discountCodes: '', links: [] };
+
+  return json({
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    players: entries.filter(Boolean),
+    resources,
+  }, 200, cors);
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
@@ -726,6 +779,7 @@ export default {
       if (method === 'POST' && pathname === '/api/player') return handlePlayerCreate(request, env, cors);
       if (method === 'GET' && pathname === '/api/players') return handlePlayersAll(request, env, cors);
       if (method === 'GET' && pathname === '/api/analytics') return handleAnalytics(request, env, cors);
+      if (method === 'GET' && pathname === '/api/backup') return handleBackup(request, env, cors);
 
       const playerMatch = pathname.match(/^\/api\/player\/([^/]+)$/);
       if (playerMatch) {

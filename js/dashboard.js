@@ -117,6 +117,36 @@
     URL.revokeObjectURL(url);
   });
 
+  // ── Backup download ───────────────────────────────────────────────────────
+
+  const backupBtn = document.getElementById('backup-btn');
+  backupBtn.addEventListener('click', async () => {
+    const label = backupBtn.textContent;
+    backupBtn.disabled = true;
+    backupBtn.textContent = 'Preparing…';
+    try {
+      const res = await window.CTTAPI.apiGet('/api/backup');
+      if (!res || !res.ok) throw new Error('backup failed');
+      const data = await window.CTTAPI.parseJson(res);
+      if (!data) throw new Error('backup failed');
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ctt-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Backup failed. Please try again.');
+    } finally {
+      backupBtn.disabled = false;
+      backupBtn.textContent = label;
+    }
+  });
+
   // ── Player list ───────────────────────────────────────────────────────────
 
   function renderPlayers(players) {
