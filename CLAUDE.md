@@ -402,11 +402,16 @@ Before any push to `main`:
 1. Confirm Cooper's real social media URLs → update `linktree.html`
 2. Update About Me content in `worker/index.js` → `handleGuestInfo()` with
    Cooper's real bio
-3. Custom domain setup through Cloudflare dashboard
+3. Move this app under Cooper's domain `cooperteachestennis.com` (exact URL TBD,
+   e.g. a subdomain). Would also allow revisiting the sessionStorage token tradeoff.
 4. ~~Transfer `OWNER_GITHUB_ID` to Cooper's GitHub account~~ — Done. Both Mitch
    and Cooper have coach access via comma-separated `OWNER_GITHUB_ID` secret.
-5. GitHub Pages on CooperTeachesTennis/CTTAcademy requires Cooper to enable
-   in repo Settings (org admin access — Mitch can't do it)
+5. **Separate marketing site** — `cooperteachestennis.com` is served by GitHub
+   Pages from a different repo, CooperTeachesTennis/cooperteachestennis-site
+   (not this app). As of Nov 23 2026 its HTTPS certificate was never issued
+   (Chrome "not private"). DNS is correct; fix needs repo admin (Cooper):
+   Settings → Pages → remove and re-save custom domain, wait for the cert,
+   then tick Enforce HTTPS.
 
 ---
 
